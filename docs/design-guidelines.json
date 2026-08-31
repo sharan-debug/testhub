@@ -1,0 +1,89 @@
+{
+  "project_name": "QA Knowledge & Feature Management Portal",
+  "theme": "light",
+  "archetype": "Swiss & High-Contrast",
+  "design_philosophy": "Actionable, Search-First, Data-Dense. The tool must prioritize high legibility for technical data (APIs, MongoDB, test steps). Minimize cognitive load using progressive disclosure and a modular 'Control Room' grid.",
+  "colors": {
+    "background": "#FDFDFD",
+    "surface": "#FFFFFF",
+    "surface_hover": "#F4F4F5",
+    "text_primary": "#09090B",
+    "text_secondary": "#71717A",
+    "border": "#E4E4E7",
+    "primary": "#2563EB",
+    "primary_hover": "#1D4ED8",
+    "success": "#10B981",
+    "warning": "#F59E0B",
+    "error": "#EF4444"
+  },
+  "typography": {
+    "headings": {
+      "family": "Chivo, sans-serif",
+      "weight": "800",
+      "tracking": "tracking-tight"
+    },
+    "body": {
+      "family": "IBM Plex Sans, sans-serif",
+      "weight": "400",
+      "tracking": "tracking-normal"
+    },
+    "code": {
+      "family": "JetBrains Mono, monospace",
+      "weight": "400",
+      "size": "text-sm"
+    }
+  },
+  "spacing_and_layout": {
+    "container_padding": "p-6 md:p-8",
+    "grid_gap": "gap-6",
+    "radius": "rounded-none md:rounded-sm",
+    "borders": "border border-zinc-200",
+    "shadows": "shadow-sm"
+  },
+  "key_components": [
+    {
+      "name": "Sidebar Navigation",
+      "rules": "Collapsible left sidebar. Include Search (Cmd+K) at the very top. Highlight active state with a bold left border (primary color) and subtle background tint."
+    },
+    {
+      "name": "Global Search / Command Palette",
+      "rules": "Highly visible on every page. Use a large search bar that opens a Cmd+K dialog. Include autosuggest and category filters."
+    },
+    {
+      "name": "Data Tables",
+      "rules": "Use Shadcn Table. Monospaced font for API endpoints, Redis Keys, and MongoDB collections. Use badges for HTTP methods (GET = Blue, POST = Green, DELETE = Red)."
+    },
+    {
+      "name": "AI Chat Agent Panel",
+      "rules": "Slide-over (Sheet component) on the right side. Distinguishable from main content via a subtle off-white background (#FAFAFA) and a persistent input area at the bottom."
+    }
+  ],
+  "accessibility_and_testing": {
+    "contrast": "Ensure all text meets at least 4.5:1 ratio. Code blocks must have high-contrast themes.",
+    "testing_attributes": "All interactive elements (buttons, inputs, tabs, table rows) MUST include `data-testid` in kebab-case format (e.g., `data-testid=\"feature-search-input\"`)."
+  },
+  "image_urls": {
+    "login_background": {
+      "url": "https://images.unsplash.com/photo-1657371551739-0a5561756121?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1MDV8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGdlb21ldHJpYyUyMHRlY2glMjBiYWNrZ3JvdW5kfGVufDB8fHx8MTc4MzUwMjY1Mnww&ixlib=rb-4.1.0&q=85",
+      "description": "Abstract white geometric hexagonal background to be used subtly on the login screen.",
+      "category": "background"
+    },
+    "mock_avatar_1": {
+      "url": "https://images.pexels.com/photos/20157010/pexels-photo-20157010.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Professional avatar for activity feed or contributor list",
+      "category": "avatar"
+    },
+    "mock_avatar_2": {
+      "url": "https://images.pexels.com/photos/30426363/pexels-photo-30426363.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+      "description": "Professional avatar for activity feed or contributor list",
+      "category": "avatar"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Initialize Tailwind config with 'Chivo' (headings), 'IBM Plex Sans' (body), and 'JetBrains Mono' (code).",
+    "Ensure all Shadcn components are created using .js (not .tsx) and integrate data-testid attributes seamlessly.",
+    "Use Lucide React or Phosphor Icons for interface actions.",
+    "The AI Agent panel should slide over the content (Sheet component) rather than taking up permanent screen real estate.",
+    "Data tables for APIs, Test Steps, and Mocking must be highly dense and readable, avoiding excessive padding."
+  ]
+}
