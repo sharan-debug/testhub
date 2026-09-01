@@ -135,6 +135,8 @@ audit_logs
 imports
 user_sessions
 chat_messages
+fs.files        ← GridFS (feature file attachments)
+fs.chunks       ← GridFS
 ```
 
 Redis, Experiments, and APIs remain embedded inside the feature document. Do not create separate collections for them in V1.
@@ -194,12 +196,16 @@ Conceptual shape:
   "testData": "...",
   "testSteps": "...",
   "mockingSteps": "...",
+  "notes": "...",
   "apis": [
     {
       "id": "uuid",
       "curl": "curl --location 'https://...'",
       "description": "Optional description"
     }
+  ],
+  "attachments": [
+    { "id": "uuid", "filename": "collection.json", "contentType": "application/json", "size": 1234, "uploadedBy": "email", "uploadedAt": "UTC", "description": "" }
   ],
   "mongoCollections": ["users"],
   "redisKeys": [
