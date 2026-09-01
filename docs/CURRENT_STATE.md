@@ -251,6 +251,8 @@ Supported columns: `name`, `description`, `owner`, `tags`, `test_data`, `test_st
 
 Model is `claude-haiku-4-5` (hardcoded). Company-approved endpoint should be configurable via env var.
 
+**V1 acceptance:** The current full-context retrieval approach (up to 200 features as a text block) is acceptable for V1 at expected user volume. Do not replace with RAG/vector search. Context quality and performance will be evaluated after real usage. This is noted as technical debt to revisit if needed, not a V1 blocker.
+
 ---
 
 ## 9. Docker / deployment
@@ -264,9 +266,12 @@ docker-compose.yml
 
 Frontend nginx proxies `/api/` → backend:8000 (inferred from craco/nginx config).
 
-`secure=False` on session cookie — must be `True` in production HTTPS.
+**Target deployment:** Organization's internal AWS/Kubernetes staging infrastructure. Not publicly accessible. VPN/network controls are an additional layer; application auth is always enforced.
 
-No MongoDB authentication configured in docker-compose (no `MONGO_INITDB_ROOT_USERNAME` etc.).
+**Local vs staging configuration:**
+- `secure=False` on session cookie — correct for local dev over HTTP. Must be `True` in staging (HTTPS).
+- docker-compose MongoDB has no authentication — acceptable for local dev. Staging must use authenticated MongoDB via Kubernetes Secrets.
+- These are staging hardening items, not blockers for local development.
 
 ---
 
@@ -312,17 +317,13 @@ No MongoDB authentication configured in docker-compose (no `MONGO_INITDB_ROOT_US
 
 ---
 
-## 13. Architectural conflicts and gaps
+## 13. Accepted decisions and remaining gaps
 
-### Gap 1 — Auth identity: email vs username
+### Decision 1 — Auth identity: email (ACCEPTED)
 
 **Current:** Uses `email` as the unique user identifier throughout (registration, login, created_by, contributors, etc.).
 
-**V1 spec:** `username` (AUTHENTICATION.md, DATA_MODEL.md, API_CONTRACT.md).
-
-**Impact:** Requires a decision — either migrate to username now (clean V1 alignment) or document email-as-username as an accepted pragmatic choice. Email is more user-friendly for login but contradicts the spec.
-
-**Recommendation:** Keep email as the login field (it is already implemented and familiar). Update docs to reflect this. Do not force a username migration that would break existing data.
+**Accepted decision:** Email/password is the V1 authentication approach. This is not a gap. Documentation has been updated to reflect email as the identity field. No migration to username is required.
 
 ### Gap 2 — No roles / RBAC
 
@@ -390,15 +391,17 @@ No MongoDB authentication configured in docker-compose (no `MONGO_INITDB_ROOT_US
 
 **V1 spec:** Optional Jira field.
 
-### Gap 12 — Cookie security
+### Gap 12 — Cookie security (staging hardening)
 
-**Current:** `secure=False` — correct for local dev, but must be `True` for production HTTPS.
+**Current:** `secure=False` — correct for local dev, acceptable for now.
 
-### Gap 13 — No MongoDB authentication
+**Required for staging:** `secure=True`. Configuration-only change, not a code rewrite.
 
-**Current:** docker-compose uses unauthenticated MongoDB.
+### Gap 13 — No MongoDB authentication (staging hardening)
 
-**V1 production spec:** MongoDB should require authentication.
+**Current:** docker-compose uses unauthenticated MongoDB — acceptable for local dev.
+
+**Required for staging:** MongoDB must use authenticated access, credentials via Kubernetes Secrets or org secret management.
 
 ---
 
@@ -417,19 +420,19 @@ No MongoDB authentication configured in docker-compose (no `MONGO_INITDB_ROOT_US
 
 ## 15. Recommended V1 implementation sequence
 
-Following `docs/IMPLEMENTATION_PLAN.md` Phase 1 onwards, with adjusted priorities:
+See `docs/V1_SCOPE_MATRIX.md` for the authoritative V1/V2 boundary.
 
 | Priority | Change | Risk |
 |---|---|---|
-| 1 | Add `role` to user model; add basic RBAC middleware | Medium |
-| 2 | Add `core_features` collection + API + mandatory dropdown | Medium |
+| 1 | Add `role` to user model; RBAC middleware | Medium |
+| 2 | `core_features` collection + API + mandatory dropdown | Medium |
 | 3 | Add missing Feature fields (coreFeatureId, jiraTicket, ownerId, updatedBy, lastVerifiedAt, lastVerifiedBy, status) | Low |
-| 4 | Change API storage from method/path to cURL text | Medium (existing data migration) |
-| 5 | Change experiment storage to name/options[]/required | Medium (existing data migration) |
+| 4 | Change API storage to cURL text + description | Medium (data migration) |
+| 5 | Change experiment storage to name/options[]/required | Medium (data migration) |
 | 6 | Soft delete | Low |
 | 7 | Proper audit_logs collection | Low |
 | 8 | Import preview/confirm | Medium |
-| 9 | Full-text search endpoint | Medium |
+| 9 | Full-text /search endpoint | Medium |
 | 10 | Mark as Verified | Low |
 | 11 | Delete dead files (AuthCallback.jsx, GOOGLE_AUTH_DEPRECATED.md) | Low |
-| 12 | Cookie secure=True for production | Low (config only) |
+| 12 | Cookie secure=True + MongoDB auth (staging config only) | Low |

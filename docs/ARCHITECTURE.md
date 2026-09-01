@@ -12,10 +12,7 @@
 ## 2. Logical architecture
 
 ```text
-Google Workspace
-       |
-       v
-Google OAuth
+Browser (internal network / VPN)
        |
        v
 +-------------------------------+
@@ -60,7 +57,6 @@ Recommended logical areas:
 src/
   components/
     Activity/
-    ApiInput/
     Feature/
     Import/
     Search/
@@ -72,7 +68,6 @@ src/
 
   lib/
     api.js
-    auth.js
 
   pages/
     Login/
@@ -81,7 +76,6 @@ src/
     FeatureDetails/
     FeatureEdit/
     Import/
-    AskAgent/
 ```
 
 Do not rewrite the frontend solely to match this tree. Adapt the existing structure incrementally.
@@ -94,7 +88,6 @@ Recommended logical modules:
 backend/
   api/
     auth.py
-    users.py
     features.py
     core_features.py
     imports.py
@@ -124,16 +117,11 @@ backend/
     authentication.py
     authorization.py
 
-  utils/
-    validation.py
-    parsing.py
-    logging.py
-
   config.py
   server.py
 ```
 
-Again, use this as a target organization, not a reason to rewrite working code.
+Use this as a target organization, not a reason to rewrite working code. Incremental extraction from the current `server.py` is acceptable.
 
 ## 5. Database
 
@@ -145,44 +133,49 @@ core_features
 features
 audit_logs
 imports
+user_sessions
+chat_messages
 ```
 
-Do not create dedicated collections for Redis/Experiments/APIs in V1 unless there is a concrete reason.
+Redis, Experiments, and APIs remain embedded inside the feature document. Do not create separate collections for them in V1.
 
-They can remain embedded inside the feature document.
+## 6. Authentication architecture
 
-## 6. Authentication
+```text
+Browser
+    ↓
+Backend Authentication API
+    ↓
+MongoDB Users Collection
+```
 
-Use Google OAuth 2.0 / OpenID Connect appropriate for a web application.
+Email/password authentication. Backend owns session creation and validation. Frontend must not bypass the backend for authentication decisions.
 
-Backend owns the callback/token exchange.
+Backend is responsible for:
 
-Use secure server-side sessions or secure HTTP-only cookies.
+- registration (email + password)
+- password hashing
+- password verification
+- session creation and storage
+- authentication middleware
+- authorization checks
 
-Do not put Google access/refresh tokens in localStorage.
+Session token delivered as HTTP-only cookie. Cookie must be `secure=True` in staging/production (HTTPS). `secure=False` is acceptable for local development over HTTP.
 
-For production, confirm:
-- company Google Workspace domain
-- OAuth consent screen configuration
-- Google Cloud project ownership
-- internal application configuration
-- authorized redirect URI
-- authorized JavaScript origin if required
-- admin restrictions/allowlisting
-
-The Marketplace URL supplied by the product owner demonstrates access to the Google Workspace Marketplace, but it does not by itself establish that the company account/domain is Google Workspace-managed. Treat the actual Workspace/Cloud configuration as a deployment prerequisite.
+No Google OAuth. No external identity providers. No SSO.
 
 ## 7. Authorization
 
 Backend determines role.
 
-Frontend may hide UI, but backend is authoritative.
+Frontend may hide UI elements for unauthorized actions, but backend is the authority.
 
 Every mutation must check:
 - authenticated user
-- account status
 - role
-- entity permissions
+- entity permissions where applicable
+
+Never trust a role supplied by the frontend.
 
 ## 8. Feature document
 
@@ -191,19 +184,21 @@ Conceptual shape:
 ```json
 {
   "_id": "ObjectId",
+  "id": "feat_<hex>",
   "name": "Precancellation cancellation eligibility",
   "coreFeatureId": "ObjectId",
   "jiraTicket": "ABC-123",
   "description": "...",
-  "ownerId": "ObjectId",
+  "ownerId": "email string",
   "tags": ["precancellation"],
   "testData": "...",
   "testSteps": "...",
   "mockingSteps": "...",
   "apis": [
     {
-      "curl": "...",
-      "description": "..."
+      "id": "uuid",
+      "curl": "curl --location 'https://...'",
+      "description": "Optional description"
     }
   ],
   "mongoCollections": ["users"],
@@ -212,28 +207,29 @@ Conceptual shape:
   ],
   "experiments": [
     {
+      "id": "uuid",
       "name": "precancellation-exp",
       "options": ["CONTROL", "TEST"],
       "required": "TEST"
     }
   ],
-  "createdBy": "ObjectId",
-  "updatedBy": "ObjectId",
+  "createdBy": "email string",
+  "updatedBy": "email string",
   "createdAt": "UTC datetime",
   "updatedAt": "UTC datetime",
   "lastVerifiedAt": "UTC datetime",
-  "lastVerifiedBy": "ObjectId",
+  "lastVerifiedBy": "email string",
   "status": "active"
 }
 ```
 
 ## 9. API representation
 
-Store cURL as text.
+Store cURL as raw text.
 
-Do not normalize the cURL into separate fields in V1.
+Do not normalize cURL into separate method/URL/header/body fields in V1.
 
-Frontend renders it as code/preformatted text.
+Frontend renders it as preformatted code.
 
 AI receives field context:
 
@@ -247,12 +243,12 @@ cURL:
 
 ## 10. Search
 
-Start with MongoDB-native search/indexing.
+Start with MongoDB-native text search / regex.
 
 Do not introduce a vector database in V1.
 
 Potential later evolution:
-- full-text search improvements
+- full-text index improvements
 - embeddings
 - vector search
 - semantic retrieval
@@ -263,19 +259,19 @@ Potential later evolution:
 User question
     |
     v
-POST /ai/chat
+POST /api/chat
     |
     v
 Authenticate
     |
     v
-Search relevant TestHub records
+Fetch relevant TestHub features from MongoDB
     |
     v
-Build bounded context
+Build bounded context (text block from feature fields)
     |
     v
-Approved AI endpoint
+Approved internal AI endpoint
     |
     v
 Validate response
@@ -284,14 +280,16 @@ Validate response
 Return answer + source references
 ```
 
-Never send the entire database to the model.
+The current implementation loads up to 200 features as context. This approach is acceptable for V1 at the expected user volume. Context size and retrieval quality will be revisited after real usage. Do not replace this with a vector/RAG system unless the current approach proves insufficient.
+
+Never send the entire database raw to the model; build a structured text representation.
 
 ## 12. AI safety
 
 V1 agent is read-only.
 
 Do not provide tools capable of:
-- Mongo mutations
+- MongoDB mutations
 - Redis mutations
 - Unleash mutations
 - arbitrary HTTP execution
@@ -314,13 +312,15 @@ Authorize
 Validate
   |
   v
-Update Mongo
+Update MongoDB
   |
   v
 Write audit event
 ```
 
-For important mutations, prefer an implementation that avoids leaving the database updated without a corresponding audit event.
+Prefer an implementation that avoids leaving the database updated without a corresponding audit event.
+
+Do not store sensitive credentials (API keys, cURL secrets) in audit log before/after values. Redact where necessary.
 
 ## 14. Import
 
@@ -328,7 +328,7 @@ For important mutations, prefer an implementation that avoids leaving the databa
 Upload
   |
   v
-Validate file type/size
+Validate file type / size
   |
   v
 Parse
@@ -337,13 +337,10 @@ Parse
 Map columns
   |
   v
-Normalize
+Validate rows
   |
   v
-Validate
-  |
-  v
-Preview
+Preview (return to user for confirmation)
   |
   v
 Confirm
@@ -352,31 +349,42 @@ Confirm
 Persist
   |
   v
-Audit import
+Audit import event
 ```
 
 ## 15. Deployment
 
-Target:
+Target environment: organization's internal AWS/Kubernetes staging infrastructure.
+
+The application is not publicly accessible. Network-level access controls (VPN, internal routing) are an additional layer, but application-level authentication is always enforced.
 
 ```text
-Office/VPN
+Internal network / VPN
     |
     v
-AWS internal entry point
+AWS / Kubernetes staging
     |
-    +---- Frontend container
+    +---- Frontend container (nginx + React build)
     |
-    +---- Backend container
+    +---- Backend container (FastAPI)
               |
-              +---- MongoDB
+              +---- MongoDB (authenticated, internal only)
               |
               +---- Internal AI endpoint
 ```
 
-Exact AWS service selection is a DevOps decision.
+Key deployment requirements:
 
-Do not require Kubernetes for V1.
+- MongoDB must use authenticated access in staging (credentials via Kubernetes Secrets or org secret management, never hardcoded)
+- Session cookie: `secure=True`, `httponly=True`, `samesite=lax`
+- CORS restricted to expected frontend origin(s)
+- No secrets in Docker images or Git
+- Health check endpoint for container orchestration
+- Non-root containers where practical
+- Structured logging (no passwords, no API keys in logs)
+- Error responses must not expose stack traces
+
+Local development uses `docker-compose` with simpler configuration (no auth on MongoDB, `secure=False` cookie). Production/staging configuration must not inherit these local defaults.
 
 ## 16. Future integration boundary
 
@@ -393,25 +401,4 @@ QA Utility
    +-- Mocking
 ```
 
-TestHub should not directly embed Redis/Unleash execution logic in V1.
-
-## Authentication Architecture
-
-Frontend
-    ↓
-Backend Authentication API
-    ↓
-MongoDB Users Collection
-
-The frontend must not directly access MongoDB.
-
-Authentication is handled entirely by the backend.
-
-The backend is responsible for:
-
-- registration
-- password hashing
-- password verification
-- authenticated session/token handling
-- authentication middleware
-- authorization checks
+TestHub must not embed Redis/Unleash execution logic in V1. Execution belongs to the future QA Utility integration.

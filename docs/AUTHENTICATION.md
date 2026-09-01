@@ -1,71 +1,71 @@
 # TestHub V1 — Authentication
 
-## Authentication Strategy
+## Authentication strategy
 
-TestHub V1 uses application-managed username/password authentication.
+TestHub V1 uses application-managed email/password authentication.
 
-Google OAuth, Google Workspace, SSO, MFA and external identity
-providers are out of scope for V1.
+Google OAuth, Google Workspace, SSO, MFA and external identity providers are out of scope for V1.
 
 ## Registration
 
 A user registers with:
 
-- username
+- email address
 - password
 
-The application creates the user account after validating the
-registration request.
+The application creates the account after validating the request.
 
-## Credential Storage
+## Credential storage
 
 MongoDB stores:
 
-- username
+- email (unique identifier)
 - password hash
 
 Plaintext passwords must never be stored.
 
 ## Login
 
-The login flow:
-
-1. User submits username and password.
-2. Backend retrieves the user by username.
+1. User submits email and password.
+2. Backend retrieves the user by email.
 3. Backend verifies the supplied password against the stored hash.
-4. Backend creates an authenticated session/token.
-5. Frontend uses the authenticated state for subsequent requests.
+4. Backend creates an authenticated session.
+5. Frontend uses the authenticated session for subsequent requests.
 
 ## Identity
 
-The authenticated username is the identity used by TestHub for:
+The authenticated email is the identity used by TestHub for:
 
-- ownership
+- feature ownership
 - editor history
 - activity history
 - audit records
 
+## Session
+
+Server-side sessions stored in MongoDB. Session token delivered as an HTTP-only cookie.
+
+- Local development: `secure=False` (HTTP acceptable locally)
+- Staging/production: `secure=True` (HTTPS required)
+
+Session expiry and rotation strategy is an implementation detail defined in `ARCHITECTURE.md`.
+
 ## Authorization
 
-V1 supports these conceptual roles:
+V1 roles:
 
 - Viewer
 - Editor
 - Approver
 - Admin
 
-Role assignment and permission management should remain simple
-for V1 and be controlled by the administrator.
+Role assignment is admin-controlled. Backend enforces role checks. Frontend may hide UI for unauthorized actions, but backend is the authority.
 
-## Network Access
+## Network access
 
-TestHub is intended for internal/staging use and should be deployed
-behind the company's existing network/VPN controls.
+TestHub is deployed within the organization's internal AWS/Kubernetes staging infrastructure. The application is not intended to be publicly accessible. Application-level authentication is still enforced independently of network controls.
 
-Application authentication must still be enforced even when the
-application is accessible only through the internal network.
-
-## Out of Scope
+## Out of scope for V1
 
 - Google OAuth
 - Google Workspace integration
@@ -74,3 +74,4 @@ application is accessible only through the internal network.
 - Email verification
 - Password reset
 - External identity providers
+- Invitation-based registration
