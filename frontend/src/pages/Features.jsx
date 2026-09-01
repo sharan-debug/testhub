@@ -2,7 +2,6 @@ import { useEffect, useState, useMemo } from "react";
 import { api } from "../lib/api";
 import { Link, useNavigate } from "react-router-dom";
 import { Plus, Search, Upload } from "lucide-react";
-import { useAuth } from "../contexts/AuthContext";
 
 export default function Features() {
   const [features, setFeatures] = useState([]);
@@ -10,8 +9,6 @@ export default function Features() {
   const [activeTag, setActiveTag] = useState("");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const canEdit = user?.role !== "viewer";
 
   const load = async () => {
     setLoading(true);
@@ -51,26 +48,22 @@ export default function Features() {
           <p className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-2">Library</p>
           <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight">Features</h1>
         </div>
-        {canEdit && (
-          <div className="flex gap-2">
-            <button
-              data-testid="import-btn"
-              type="button"
-              onClick={() => navigate("/import")}
-              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 rounded-sm transition-colors"
-            >
-              <Upload className="w-4 h-4" /> Import
-            </button>
-            <button
-              data-testid="features-new-btn"
-              type="button"
-              onClick={() => navigate("/features/new")}
-              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm transition-colors"
-            >
-              <Plus className="w-4 h-4" /> New
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2">
+          <button
+            data-testid="import-btn"
+            onClick={() => navigate("/import")}
+            className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 rounded-sm transition-colors"
+          >
+            <Upload className="w-4 h-4" /> Import
+          </button>
+          <button
+            data-testid="features-new-btn"
+            onClick={() => navigate("/features/new")}
+            className="inline-flex items-center gap-1.5 h-9 px-3 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm transition-colors"
+          >
+            <Plus className="w-4 h-4" /> New
+          </button>
+        </div>
       </div>
 
       <div className="mb-4 relative">
@@ -118,16 +111,13 @@ export default function Features() {
         {!loading && filtered.length === 0 && (
           <div className="p-8 text-center">
             <p className="text-sm text-zinc-500 mb-3">No features match.</p>
-            {canEdit && (
-              <button
-                data-testid="features-empty-new"
-                type="button"
-                onClick={() => navigate("/features/new")}
-                className="inline-flex items-center gap-1.5 h-9 px-3 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm"
-              >
-                <Plus className="w-4 h-4" />Add one
-              </button>
-            )}
+            <button
+              data-testid="features-empty-new"
+              onClick={() => navigate("/features/new")}
+              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm"
+            >
+              <Plus className="w-4 h-4" />Add one
+            </button>
           </div>
         )}
         <div className="divide-y divide-zinc-100">
