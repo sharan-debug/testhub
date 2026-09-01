@@ -210,12 +210,28 @@ Before coding:
 4. Read `docs/DATA_MODEL.md`.
 5. Read `docs/API_CONTRACT.md`.
 6. Read `docs/IMPLEMENTATION_PLAN.md`.
-7. Read `.claude/skills/testhub-v1/SKILL.md`.
-8. Inspect the actual repository files.
-9. State what existing files will be changed and why.
-10. Implement the smallest coherent change.
-11. Run relevant tests/lint/build.
-12. Report files changed, validation performed, and remaining risks.
+7. Read `docs/V1_SCOPE_MATRIX.md`.
+8. Read `.claude/skills/testhub-v1/SKILL.md`.
+9. Inspect the actual repository files.
+10. State what existing files will be changed and why.
+11. Implement the smallest coherent change.
+12. Run relevant tests/lint/build.
+13. Report files changed, validation performed, and remaining risks.
+
+## Phase completion rule
+
+Every phase of development must end with:
+
+1. All tests passing.
+2. Frontend build succeeding (`yarn build` or equivalent).
+3. Backend starting cleanly.
+4. A working, verified build committed and pushed to Git.
+
+Do NOT move to the next phase until the current phase is committed, pushed, and confirmed working.
+
+Do NOT push broken builds.
+
+Do NOT push with secrets, API keys, or credentials in any tracked file.
 
 When a requirement is ambiguous:
 - Prefer the current V1 rules in this file.
@@ -236,8 +252,8 @@ Before modifying authentication, read:
 
 Do NOT implement Google OAuth or Google Workspace authentication.
 
-TestHub V1 uses application-managed username/password
-authentication backed by MongoDB.
+TestHub V1 uses email/password authentication backed by MongoDB.
+The authenticated email is the user's TestHub identity.
 
 Do not change this architecture unless explicitly instructed
 by the user.
@@ -254,6 +270,8 @@ Use the following responsibilities:
 - `DATA_MODEL.md` — persistence model
 - `API_CONTRACT.md` — backend API contract
 - `IMPLEMENTATION_PLAN.md` — implementation sequence
+- `V1_SCOPE_MATRIX.md` — authoritative V1/V2 boundary
+- `CURRENT_STATE.md` — what actually exists today
 - `CLAUDE.md` — instructions for working on the repository
 
 Do not duplicate large sections between these documents.

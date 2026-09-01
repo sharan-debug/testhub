@@ -13,6 +13,19 @@ Each phase should:
 4. report changes
 5. stop
 
+## Phase completion rule
+
+Every phase must end with:
+
+1. All tests passing.
+2. Frontend build succeeding.
+3. Backend starting cleanly.
+4. Working build committed and pushed to Git.
+
+Do NOT move to the next phase until the current phase passes all of the above.
+Do NOT push broken builds.
+Do NOT push secrets, API keys, or credentials in any tracked file.
+
 ---
 
 # Phase 0 — Baseline
