@@ -4,6 +4,17 @@ Accepted decisions that must not be reversed without an explicit product directi
 
 ---
 
+## Bootstrap / initial data decisions
+
+| Decision | Choice |
+|---|---|
+| Existing feature data | Start fresh — all existing data will be deleted. No migration from old API/experiment format needed. |
+| Admin bootstrapping | Register normally, then promote to admin via a manual MongoDB command. No automatic first-user-is-admin logic in code. |
+| Default role for new registrations | `editor` — initial user base is QA team only. Viewer-only restriction will be introduced when the tool scales beyond QA. |
+| Core Feature management | Core Features are admin-managed only. Editors can select from the dropdown but cannot add/edit Core Features. Admin adds Core Features through a dedicated admin endpoint or UI panel. |
+
+---
+
 ## Authentication
 
 Email/password authentication backed by MongoDB.

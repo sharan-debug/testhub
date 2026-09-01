@@ -434,5 +434,8 @@ See `docs/V1_SCOPE_MATRIX.md` for the authoritative V1/V2 boundary.
 | 8 | Import preview/confirm | Medium |
 | 9 | Full-text /search endpoint | Medium |
 | 10 | Mark as Verified | Low |
-| 11 | Delete dead files (AuthCallback.jsx, GOOGLE_AUTH_DEPRECATED.md) | Low |
-| 12 | Cookie secure=True + MongoDB auth (staging config only) | Low |
+| 11 | Add `notes` free-text field to Feature model and form | Low |
+| 12 | File attachments (API collection JSON) — GridFS storage | Medium |
+| 13 | Owner filter UI on features list | Low |
+| 14 | Delete dead files (AuthCallback.jsx, GOOGLE_AUTH_DEPRECATED.md) | Low |
+| 15 | Cookie secure=True + MongoDB auth (staging config only) | Low |

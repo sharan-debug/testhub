@@ -55,12 +55,25 @@ Recommended unique index:
   "testData": "Markdown/text",
   "testSteps": "Markdown/text",
   "mockingSteps": "Markdown/text",
+  "notes": "Free text — catch-all for any additional information",
 
   "apis": [
     {
       "id": "uuid",
       "curl": "raw text",
       "description": "Optional"
+    }
+  ],
+
+  "attachments": [
+    {
+      "id": "uuid",
+      "filename": "collection.json",
+      "contentType": "application/json",
+      "size": 12345,
+      "uploadedBy": "email",
+      "uploadedAt": "UTC datetime",
+      "description": "Optional — e.g. Postman collection"
     }
   ],
 
@@ -91,17 +104,21 @@ Recommended unique index:
 }
 ```
 
-### Important
+### Field notes
 
-Do not embed:
+- `notes` — general free-text catch-all. Not the same as `description` (which describes the feature), `testData`, `testSteps` or `mockingSteps`. Used for anything that doesn't fit neatly elsewhere.
+- `attachments` — V1 scope is limited to API-related files (Postman collections, cURL JSON exports). File content stored in MongoDB GridFS; feature document holds the metadata reference only.
+- MongoDB collections remain as a list of collection name strings. A managed dropdown of known DB collections is out of scope for V1 and V2.
+- Tags are the mechanism for Platform/POD categorization — no separate field required.
+
+### Do not embed
+
 - scenarios
 - dependency graphs
-- Redis state
-- Redis TTL
+- Redis state or TTL
 - execution history
 - Unleash current state
-
-in V1.
+- DB collection dropdown values
 
 ## audit_logs
 

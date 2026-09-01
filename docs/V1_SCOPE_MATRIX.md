@@ -45,9 +45,12 @@ Authoritative reference for what must be built now versus what belongs to later 
 | Test Data (free text) | ✓ | | |
 | Test Steps (free text) | ✓ | | |
 | Mocking Steps (free text) | ✓ | | |
+| Notes (free text catch-all) | ✓ | | Separate field from description |
 | APIs as cURL + description | ✓ | | |
+| File attachments (API collection files) | ✓ | | Postman/cURL JSON; stored in GridFS |
 | API execution | ✗ | — | Never executes cURL |
-| MongoDB collections (names) | ✓ | | |
+| MongoDB collections (names, free text) | ✓ | | |
+| MongoDB collections as managed dropdown | ✗ | — | Out of scope entirely |
 | Redis keys / patterns | ✓ | | Key/pattern only |
 | Redis value / TTL / state | ✗ | — | Out of scope |
 | Experiments (name + options + required) | ✓ | | |
@@ -88,6 +91,7 @@ Authoritative reference for what must be built now versus what belongs to later 
 
 | Item | V1 | V2+ | Notes |
 |---|---|---|---|
+| Owner filter in feature list UI | ✓ | | API filter already exists; needs UI |
 | Search across all feature fields | ✓ | | |
 | matchedFields in response | ✓ | | |
 | Vector/semantic search | ✗ | ✓ | |
