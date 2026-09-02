@@ -21,6 +21,7 @@ export default function FeatureDetail() {
   const canEdit = user?.role !== "viewer";
   const [feature, setFeature] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [coreFeaturesMap, setCoreFeaturesMap] = useState({});
 
   const load = async () => {
     try {
@@ -31,6 +32,14 @@ export default function FeatureDetail() {
       navigate("/features");
     }
   };
+
+  useEffect(() => {
+    api.get("/core-features").then((r) => {
+      const map = {};
+      r.data.forEach((cf) => { map[cf.id] = cf.name; });
+      setCoreFeaturesMap(map);
+    }).catch(() => {});
+  }, []);
 
   useEffect(() => { load(); }, [id]);
 
@@ -52,6 +61,11 @@ export default function FeatureDetail() {
 
       <div className="flex items-start justify-between mb-6 gap-4">
         <div className="min-w-0">
+          {feature.core_feature_id && coreFeaturesMap[feature.core_feature_id] && (
+            <p className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-1" data-testid="core-feature-label">
+              {coreFeaturesMap[feature.core_feature_id]}
+            </p>
+          )}
           <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight break-words" data-testid="feature-name">{feature.name}</h1>
           {feature.description && <p className="text-sm text-zinc-600 mt-2 max-w-2xl">{feature.description}</p>}
           <div className="flex items-center gap-4 mt-4 text-xs text-zinc-500 font-mono flex-wrap">

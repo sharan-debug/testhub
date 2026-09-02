@@ -1,5 +1,5 @@
 import pytest
-from tests.conftest import register_and_login, set_role
+from tests.conftest import register_and_login, set_role, seed_core_feature
 
 pytestmark = pytest.mark.asyncio
 
@@ -51,21 +51,21 @@ class TestViewerCannotMutate:
         assert resp.status_code == 403
 
     async def test_viewer_cannot_update_feature(self, client):
-        # Create a feature as editor first
+        cf_id = await seed_core_feature()
         editor_client = client
         await register_and_login(editor_client, "editor@test.com")
-        create_resp = await editor_client.post("/api/features", json={"name": "Existing"})
+        create_resp = await editor_client.post("/api/features", json={"name": "Existing", "core_feature_id": cf_id})
         feature_id = create_resp.json()["id"]
 
-        # Switch to viewer
         await register_and_login(client, "viewer@test.com")
         await set_role("viewer@test.com", "viewer")
         resp = await client.put(f"/api/features/{feature_id}", json={"name": "Updated"})
         assert resp.status_code == 403
 
     async def test_viewer_cannot_delete_feature(self, client):
+        cf_id = await seed_core_feature()
         await register_and_login(client, "editor@test.com")
-        create_resp = await client.post("/api/features", json={"name": "ToDelete"})
+        create_resp = await client.post("/api/features", json={"name": "ToDelete", "core_feature_id": cf_id})
         feature_id = create_resp.json()["id"]
 
         await register_and_login(client, "viewer@test.com")
@@ -85,22 +85,25 @@ class TestViewerCannotMutate:
 # ---------------------------------------------------------------------------
 class TestEditorCanMutate:
     async def test_editor_can_create_feature(self, client):
+        cf_id = await seed_core_feature()
         await register_and_login(client, "editor@test.com")
-        resp = await client.post("/api/features", json={"name": "My Feature"})
+        resp = await client.post("/api/features", json={"name": "My Feature", "core_feature_id": cf_id})
         assert resp.status_code == 200
         assert resp.json()["name"] == "My Feature"
 
     async def test_editor_can_update_feature(self, client):
+        cf_id = await seed_core_feature()
         await register_and_login(client, "editor@test.com")
-        create_resp = await client.post("/api/features", json={"name": "Original"})
+        create_resp = await client.post("/api/features", json={"name": "Original", "core_feature_id": cf_id})
         feature_id = create_resp.json()["id"]
         resp = await client.put(f"/api/features/{feature_id}", json={"name": "Updated"})
         assert resp.status_code == 200
         assert resp.json()["name"] == "Updated"
 
     async def test_editor_can_delete_feature(self, client):
+        cf_id = await seed_core_feature()
         await register_and_login(client, "editor@test.com")
-        create_resp = await client.post("/api/features", json={"name": "Bye"})
+        create_resp = await client.post("/api/features", json={"name": "Bye", "core_feature_id": cf_id})
         feature_id = create_resp.json()["id"]
         resp = await client.delete(f"/api/features/{feature_id}")
         assert resp.status_code == 200

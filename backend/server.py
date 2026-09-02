@@ -61,6 +61,7 @@ class KeyValueItem(BaseModel):
 class Feature(BaseModel):
     id: str = Field(default_factory=lambda: f"feat_{uuid.uuid4().hex[:12]}")
     name: str
+    core_feature_id: str = ""
     description: str = ""
     owner: str = ""
     tags: List[str] = Field(default_factory=list)
@@ -79,6 +80,7 @@ class Feature(BaseModel):
 
 class FeatureCreate(BaseModel):
     name: str
+    core_feature_id: str = ""
     description: str = ""
     owner: str = ""
     tags: List[str] = Field(default_factory=list)
@@ -93,6 +95,7 @@ class FeatureCreate(BaseModel):
 
 class FeatureUpdate(BaseModel):
     name: Optional[str] = None
+    core_feature_id: Optional[str] = None
     description: Optional[str] = None
     owner: Optional[str] = None
     tags: Optional[List[str]] = None
@@ -127,6 +130,26 @@ class RegisterIn(BaseModel):
     email: str
     password: str
     name: str = ""
+
+
+class CoreFeature(BaseModel):
+    id: str = Field(default_factory=lambda: f"cf_{uuid.uuid4().hex[:12]}")
+    name: str
+    description: str = ""
+    status: str = "active"
+    created_by: str = ""
+    created_at: str = Field(default_factory=now_iso)
+    updated_at: str = Field(default_factory=now_iso)
+
+
+class CoreFeatureCreate(BaseModel):
+    name: str
+    description: str = ""
+
+
+class CoreFeatureUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
 
 
 class ChatMessageIn(BaseModel):
@@ -254,6 +277,87 @@ async def logout(request: Request, response: Response):
 
 
 # ============================================================
+# Core Feature endpoints
+# ============================================================
+@api_router.get("/core-features")
+async def list_core_features(request: Request):
+    await get_current_user(request)
+    docs = await db.core_features.find({"status": "active"}, {"_id": 0}).sort("name", 1).to_list(1000)
+    return docs
+
+
+@api_router.post("/core-features")
+async def create_core_feature(payload: CoreFeatureCreate, request: Request):
+    user = await require_role("admin")(request)
+    existing = await db.core_features.find_one(
+        {"name": {"$regex": f"^{payload.name.strip()}$", "$options": "i"}, "status": "active"}
+    )
+    if existing:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "DUPLICATE_CORE_FEATURE", "message": "A core feature with this name already exists"}},
+        )
+    cf = CoreFeature(
+        name=payload.name.strip(),
+        description=payload.description,
+        created_by=user.email,
+    )
+    doc = cf.model_dump()
+    await db.core_features.insert_one(doc)
+    await db.activity.insert_one({
+        "id": f"act_{uuid.uuid4().hex[:12]}",
+        "user_email": user.email,
+        "user_name": user.name,
+        "action": "core_feature_created",
+        "feature_id": cf.id,
+        "feature_name": cf.name,
+        "timestamp": now_iso(),
+    })
+    doc.pop("_id", None)
+    return doc
+
+
+@api_router.put("/core-features/{cf_id}")
+async def update_core_feature(cf_id: str, payload: CoreFeatureUpdate, request: Request):
+    user = await require_role("admin")(request)
+    existing = await db.core_features.find_one({"id": cf_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Core feature not found")
+    updates: Dict[str, Any] = {}
+    if payload.name is not None:
+        updates["name"] = payload.name.strip()
+    if payload.description is not None:
+        updates["description"] = payload.description
+    updates["updated_at"] = now_iso()
+    await db.core_features.update_one({"id": cf_id}, {"$set": updates})
+    await db.activity.insert_one({
+        "id": f"act_{uuid.uuid4().hex[:12]}",
+        "user_email": user.email,
+        "user_name": user.name,
+        "action": "core_feature_updated",
+        "feature_id": cf_id,
+        "feature_name": updates.get("name", existing["name"]),
+        "timestamp": now_iso(),
+    })
+    doc = await db.core_features.find_one({"id": cf_id}, {"_id": 0})
+    return doc
+
+
+async def _validate_core_feature_id(core_feature_id: str):
+    if not core_feature_id or not core_feature_id.strip():
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "INVALID_CORE_FEATURE", "message": "core_feature_id is required"}},
+        )
+    cf = await db.core_features.find_one({"id": core_feature_id, "status": "active"})
+    if not cf:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "INVALID_CORE_FEATURE", "message": "core_feature_id does not match an active core feature"}},
+        )
+
+
+# ============================================================
 # Features endpoints
 # ============================================================
 @api_router.get("/features")
@@ -286,6 +390,7 @@ async def get_feature(feature_id: str, request: Request):
 @api_router.post("/features")
 async def create_feature(payload: FeatureCreate, request: Request):
     user = await require_role("editor")(request)
+    await _validate_core_feature_id(payload.core_feature_id)
     feature = Feature(
         **payload.model_dump(),
         created_by=user.email,
@@ -304,6 +409,9 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
     existing = await db.features.find_one({"id": feature_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")
+
+    if payload.core_feature_id is not None:
+        await _validate_core_feature_id(payload.core_feature_id)
 
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     for key in ["apis", "mongo_collections", "redis_keys", "experiments"]:

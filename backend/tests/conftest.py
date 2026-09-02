@@ -15,11 +15,13 @@ async def clean_db():
     await db.users.drop()
     await db.user_sessions.drop()
     await db.features.drop()
+    await db.core_features.drop()
     await db.activity.drop()
     yield
     await db.users.drop()
     await db.user_sessions.drop()
     await db.features.drop()
+    await db.core_features.drop()
     await db.activity.drop()
 
 
@@ -40,3 +42,21 @@ async def register_and_login(client, email: str, password: str = "Password1!", n
 async def set_role(email: str, role: str):
     """Directly set a user's role in the DB (simulates admin MongoDB command)."""
     await db.users.update_one({"email": email}, {"$set": {"role": role}})
+
+
+async def seed_core_feature(name: str = "Test Core Feature") -> str:
+    """Insert a core feature directly into the DB and return its id."""
+    import uuid
+    from datetime import datetime, timezone
+    cf_id = f"cf_{uuid.uuid4().hex[:12]}"
+    now = datetime.now(timezone.utc).isoformat()
+    await db.core_features.insert_one({
+        "id": cf_id,
+        "name": name,
+        "description": "",
+        "status": "active",
+        "created_by": "seed",
+        "created_at": now,
+        "updated_at": now,
+    })
+    return cf_id
