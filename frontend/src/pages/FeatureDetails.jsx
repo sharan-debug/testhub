@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
 import { Pencil, Trash2, ArrowLeft, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "../contexts/AuthContext";
 
 function Section({ title, children, testid }) {
   return (
@@ -16,6 +17,8 @@ function Section({ title, children, testid }) {
 export default function FeatureDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canEdit = user?.role !== "viewer";
   const [feature, setFeature] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -64,22 +67,26 @@ export default function FeatureDetail() {
             </div>
           )}
         </div>
-        <div className="flex gap-2 shrink-0">
-          <button
-            data-testid="edit-feature-btn"
-            onClick={() => navigate(`/features/${id}/edit`)}
-            className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 rounded-sm transition-colors"
-          >
-            <Pencil className="w-3.5 h-3.5" /> Edit
-          </button>
-          <button
-            data-testid="delete-feature-btn"
-            onClick={() => setShowDeleteConfirm(true)}
-            className="h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 text-red-600 hover:text-red-700 rounded-sm transition-colors"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {canEdit && (
+          <div className="flex gap-2 shrink-0">
+            <button
+              data-testid="edit-feature-btn"
+              type="button"
+              onClick={() => navigate(`/features/${id}/edit`)}
+              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 rounded-sm transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </button>
+            <button
+              data-testid="delete-feature-btn"
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 text-red-600 hover:text-red-700 rounded-sm transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Delete confirm dialog */}
