@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, UploadFile, File, Depends
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -30,6 +30,12 @@ api_router = APIRouter(prefix="/api")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+
+
+# ============================================================
+# Role hierarchy
+# ============================================================
+ROLE_HIERARCHY = {"viewer": 0, "editor": 1, "approver": 2, "admin": 3}
 
 
 # ============================================================
@@ -104,7 +110,12 @@ class User(BaseModel):
     email: str
     name: str
     picture: str = ""
+    role: str = "editor"
     created_at: str = Field(default_factory=now_iso)
+
+
+class UserRoleUpdate(BaseModel):
+    role: str
 
 
 class LoginIn(BaseModel):
@@ -154,6 +165,18 @@ async def get_current_user(request: Request) -> User:
 
 
 
+def require_role(min_role: str):
+    async def check(request: Request) -> User:
+        user = await get_current_user(request)
+        if ROLE_HIERARCHY.get(user.role, -1) < ROLE_HIERARCHY.get(min_role, 999):
+            raise HTTPException(
+                status_code=403,
+                detail={"error": {"code": "FORBIDDEN", "message": "Insufficient permissions"}},
+            )
+        return user
+    return check
+
+
 async def _create_session(user_id: str, response: Response) -> str:
     session_token = f"sess_{uuid.uuid4().hex}"
     expires_at = datetime.now(timezone.utc) + timedelta(days=7)
@@ -181,11 +204,12 @@ async def register(payload: RegisterIn, response: Response):
         "email": payload.email,
         "name": name,
         "picture": "",
+        "role": "editor",
         "password_hash": bcrypt.hashpw(payload.password.encode(), bcrypt.gensalt()).decode(),
         "created_at": now_iso(),
     })
     await _create_session(user_id, response)
-    return {"user_id": user_id, "email": payload.email, "name": name, "picture": ""}
+    return {"user_id": user_id, "email": payload.email, "name": name, "picture": "", "role": "editor"}
 
 
 @api_router.post("/auth/login")
@@ -210,6 +234,7 @@ async def login(payload: LoginIn, response: Response):
         "email": user_doc["email"],
         "name": user_doc["name"],
         "picture": user_doc.get("picture", ""),
+        "role": user_doc.get("role", "editor"),
     }
 
 
@@ -260,7 +285,7 @@ async def get_feature(feature_id: str, request: Request):
 
 @api_router.post("/features")
 async def create_feature(payload: FeatureCreate, request: Request):
-    user = await get_current_user(request)
+    user = await require_role("editor")(request)
     feature = Feature(
         **payload.model_dump(),
         created_by=user.email,
@@ -275,7 +300,7 @@ async def create_feature(payload: FeatureCreate, request: Request):
 
 @api_router.put("/features/{feature_id}")
 async def update_feature(feature_id: str, payload: FeatureUpdate, request: Request):
-    user = await get_current_user(request)
+    user = await require_role("editor")(request)
     existing = await db.features.find_one({"id": feature_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")
@@ -298,7 +323,7 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
 
 @api_router.delete("/features/{feature_id}")
 async def delete_feature(feature_id: str, request: Request):
-    user = await get_current_user(request)
+    user = await require_role("editor")(request)
     existing = await db.features.find_one({"id": feature_id}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")
@@ -312,7 +337,7 @@ async def delete_feature(feature_id: str, request: Request):
 # ============================================================
 @api_router.post("/features/import")
 async def import_features(request: Request, file: UploadFile = File(...)):
-    user = await get_current_user(request)
+    user = await require_role("editor")(request)
     contents = await file.read()
     filename = (file.filename or "").lower()
 
@@ -570,6 +595,43 @@ async def chat_history(session_id: str, request: Request):
     await get_current_user(request)
     docs = await db.chat_messages.find({"session_id": session_id}, {"_id": 0}).sort("timestamp", 1).to_list(1000)
     return docs
+
+
+# ============================================================
+# User management (admin only)
+# ============================================================
+@api_router.get("/users")
+async def list_users(request: Request):
+    await require_role("admin")(request)
+    docs = await db.users.find({}, {"_id": 0, "password_hash": 0}).to_list(1000)
+    return docs
+
+
+@api_router.patch("/users/{user_id}/role")
+async def update_user_role(user_id: str, payload: UserRoleUpdate, request: Request):
+    actor = await require_role("admin")(request)
+    if payload.role not in ROLE_HIERARCHY:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "INVALID_ROLE", "message": f"Role must be one of: {list(ROLE_HIERARCHY.keys())}"}},
+        )
+    target = await db.users.find_one({"user_id": user_id}, {"_id": 0, "password_hash": 0})
+    if not target:
+        raise HTTPException(status_code=404, detail="User not found")
+    old_role = target.get("role", "editor")
+    await db.users.update_one({"user_id": user_id}, {"$set": {"role": payload.role}})
+    await db.activity.insert_one({
+        "id": f"act_{uuid.uuid4().hex[:12]}",
+        "user_email": actor.email,
+        "user_name": actor.name,
+        "action": "role_changed",
+        "target_user_id": user_id,
+        "target_email": target["email"],
+        "old_role": old_role,
+        "new_role": payload.role,
+        "timestamp": now_iso(),
+    })
+    return {"ok": True, "user_id": user_id, "role": payload.role}
 
 
 # ============================================================

@@ -15,16 +15,12 @@ Each phase should:
 
 ## Phase completion rule
 
-Every phase must end with:
-
-1. All tests passing.
-2. Frontend build succeeding.
-3. Backend starting cleanly.
-4. Working build committed and pushed to Git.
-
-Do NOT move to the next phase until the current phase passes all of the above.
-Do NOT push broken builds.
-Do NOT push secrets, API keys, or credentials in any tracked file.
+After every phase:
+1. Run all backend tests (`pytest`)
+2. Build the frontend (`npm run build`)
+3. Verify the backend starts cleanly
+4. Commit all changes with a descriptive message
+5. Push to git
 
 ---
 
@@ -76,34 +72,9 @@ Validation:
 
 ---
 
-# Phase 2 — Google authentication
+# Phase 2 — (Auth already implemented — skip)
 
-### Goal
-Remove local registration/password login.
-
-Implement:
-- Google OAuth web-server flow
-- secure callback
-- secure application session
-- `/auth/me`
-- logout
-- user auto-provisioning
-- company-domain/access restriction
-- role lookup from Mongo
-
-Do NOT request Google Drive, Gmail, Calendar or other Workspace scopes unless a future feature requires them.
-
-For basic identity, request the minimum identity scopes necessary.
-
-Before production, verify the actual company Workspace/Cloud setup with the administrator.
-
-Validation:
-- successful company login
-- rejected unauthorized domain
-- session persistence
-- logout
-- expired/invalid session
-- direct protected-route access
+Email/password registration and login are implemented in the current codebase (Phase 0 baseline). Authentication was verified during Phase 0 analysis. The working rule is to preserve existing auth and build RBAC on top of it in Phase 3.
 
 ---
 
@@ -331,7 +302,7 @@ Before deployment:
 # Phase 15 — Production smoke test
 
 Test:
-1. Google login
+1. Login (email/password)
 2. Viewer access
 3. Editor create
 4. Editor edit
@@ -373,36 +344,3 @@ Test:
 - QA Utility orchestration
 - environment verification
 
-## Phase 1 — Authentication
-
-- Remove Google OAuth assumptions
-- Implement username/password registration
-- Implement secure password hashing
-- Implement login
-- Implement logout
-- Implement authenticated-user endpoint
-- Add authentication middleware
-- Associate authenticated user with feature creation
-- Protect application routes
-- Add basic role authorization
-- Add authentication tests
-
-## Phase 2 — Existing Feature Data
-
-- Preserve existing feature functionality
-- Verify feature ownership
-- Verify editor history
-- Verify activity history
-- Verify import functionality
-
-## Phase 3 — V1 UX Improvements
-
-...
-
-## Phase 4 — AI Read-only
-
-...
-
-## Phase 5 — Production hardening
-
-...

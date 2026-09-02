@@ -57,15 +57,18 @@ export default function Layout() {
           </button>
         </nav>
 
-        <div className="p-3 border-t border-zinc-200">
-          <button
-            data-testid="new-feature-button"
-            onClick={() => navigate("/features/new")}
-            className="w-full h-9 bg-black hover:bg-zinc-800 text-white rounded-sm text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
-          >
-            <Plus className="w-4 h-4" /> New Feature
-          </button>
-        </div>
+        {user?.role !== "viewer" && (
+          <div className="p-3 border-t border-zinc-200">
+            <button
+              data-testid="new-feature-button"
+              type="button"
+              onClick={() => navigate("/features/new")}
+              className="w-full h-9 bg-black hover:bg-zinc-800 text-white rounded-sm text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
+            >
+              <Plus className="w-4 h-4" /> New Feature
+            </button>
+          </div>
+        )}
 
         {user && (
           <div className="p-3 border-t border-zinc-200 flex items-center gap-2">
@@ -79,6 +82,11 @@ export default function Layout() {
             <div className="flex-1 min-w-0">
               <div className="text-xs font-medium truncate" data-testid="current-user-name">{user.name}</div>
               <div className="text-[11px] text-zinc-500 truncate">{user.email}</div>
+              {user.role && (
+                <span className="inline-block text-[10px] font-mono px-1.5 py-0.5 mt-0.5 rounded-sm bg-zinc-100 text-zinc-600" data-testid="user-role-badge">
+                  {user.role}
+                </span>
+              )}
             </div>
             <button
               data-testid="logout-button"

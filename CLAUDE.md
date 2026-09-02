@@ -30,12 +30,13 @@ A user must be able to create useful knowledge in roughly the same effort as mai
 ## Current V1 scope
 
 ### Authentication
-- Google Workspace login only
-- No username/password registration
-- No registration form
-- Automatically create/update the user's basic TestHub account after successful company authentication
-- Restrict access to the approved company identity/domain
-- Do not assume the Marketplace URL itself proves that the company uses Google Workspace; deployment configuration must be verified with the company's Google Workspace/Cloud administrator.
+- Email/password registration and login
+- No Google OAuth, no external identity providers
+- Passwords securely hashed with bcrypt; plaintext passwords must never be stored
+- Server-side session stored in MongoDB (user_sessions collection)
+- HTTP-only cookie session token (secure=False for local dev, secure=True for staging)
+- New users default to editor role
+- Admin role bootstrapped by promoting a user via MongoDB command after first registration
 
 ### Roles
 - Viewer
@@ -200,6 +201,7 @@ V3 may provide:
 13. Add tests for new backend behavior.
 14. Keep UI changes consistent with the existing TestHub design.
 15. Do not add V2 complexity to V1 unless it directly reduces V1 user effort.
+16. After each phase: run all tests, build the frontend, verify the backend starts, commit and push to git.
 
 ## Development workflow for Claude
 
@@ -211,27 +213,13 @@ Before coding:
 5. Read `docs/API_CONTRACT.md`.
 6. Read `docs/IMPLEMENTATION_PLAN.md`.
 7. Read `docs/V1_SCOPE_MATRIX.md`.
-8. Read `.claude/skills/testhub-v1/SKILL.md`.
-9. Inspect the actual repository files.
-10. State what existing files will be changed and why.
-11. Implement the smallest coherent change.
-12. Run relevant tests/lint/build.
-13. Report files changed, validation performed, and remaining risks.
-
-## Phase completion rule
-
-Every phase of development must end with:
-
-1. All tests passing.
-2. Frontend build succeeding (`yarn build` or equivalent).
-3. Backend starting cleanly.
-4. A working, verified build committed and pushed to Git.
-
-Do NOT move to the next phase until the current phase is committed, pushed, and confirmed working.
-
-Do NOT push broken builds.
-
-Do NOT push with secrets, API keys, or credentials in any tracked file.
+8. Read `docs/CURRENT_STATE.md`.
+9. Read `.claude/skills/testhub-v1/SKILL.md`.
+10. Inspect the actual repository files.
+11. State what existing files will be changed and why.
+12. Implement the smallest coherent change.
+13. Run relevant tests/lint/build.
+14. Report files changed, validation performed, and remaining risks.
 
 When a requirement is ambiguous:
 - Prefer the current V1 rules in this file.
@@ -252,8 +240,8 @@ Before modifying authentication, read:
 
 Do NOT implement Google OAuth or Google Workspace authentication.
 
-TestHub V1 uses email/password authentication backed by MongoDB.
-The authenticated email is the user's TestHub identity.
+TestHub V1 uses application-managed email/password
+authentication backed by MongoDB.
 
 Do not change this architecture unless explicitly instructed
 by the user.
@@ -270,8 +258,8 @@ Use the following responsibilities:
 - `DATA_MODEL.md` — persistence model
 - `API_CONTRACT.md` — backend API contract
 - `IMPLEMENTATION_PLAN.md` — implementation sequence
-- `V1_SCOPE_MATRIX.md` — authoritative V1/V2 boundary
-- `CURRENT_STATE.md` — what actually exists today
+- `V1_SCOPE_MATRIX.md` — authoritative V1/V2 scope boundary
+- `CURRENT_STATE.md` — Phase 0 baseline analysis and gap list
 - `CLAUDE.md` — instructions for working on the repository
 
 Do not duplicate large sections between these documents.
