@@ -5,7 +5,7 @@ import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
 
 const EMPTY = {
-  name: "", description: "", owner: "", tags: [],
+  name: "", core_feature_id: "", description: "", owner: "", tags: [],
   test_data: "", test_steps: "", mocking_steps: "",
   apis: [], mongo_collections: [], redis_keys: [], experiments: [],
 };
@@ -28,6 +28,12 @@ export default function FeatureEdit() {
   const [f, setF] = useState(EMPTY);
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
+  const [coreFeatures, setCoreFeatures] = useState([]);
+  const [cfError, setCfError] = useState("");
+
+  useEffect(() => {
+    api.get("/core-features").then((r) => setCoreFeatures(r.data)).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!isEdit) return;
@@ -60,10 +66,13 @@ export default function FeatureEdit() {
 
   const save = async () => {
     if (!f.name.trim()) { toast.error("Feature name is required"); return; }
+    if (!f.core_feature_id) { setCfError("Core Feature is required"); return; }
+    setCfError("");
     setSaving(true);
     try {
       const payload = {
-        name: f.name, description: f.description, owner: f.owner, tags: f.tags,
+        name: f.name, core_feature_id: f.core_feature_id, description: f.description,
+        owner: f.owner, tags: f.tags,
         test_data: f.test_data, test_steps: f.test_steps, mocking_steps: f.mocking_steps,
         apis: f.apis, mongo_collections: f.mongo_collections, redis_keys: f.redis_keys, experiments: f.experiments,
       };
@@ -110,6 +119,21 @@ export default function FeatureEdit() {
       <div className="space-y-4">
         <Section title="Basics" testid="section-basics">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Core Feature *</label>
+              <select
+                data-testid="input-core-feature"
+                value={f.core_feature_id}
+                onChange={(e) => { update({ core_feature_id: e.target.value }); setCfError(""); }}
+                className={`${inputCls}${cfError ? " border-red-400 focus:ring-red-500" : ""}`}
+              >
+                <option value="">Select core feature…</option>
+                {coreFeatures.map((cf) => (
+                  <option key={cf.id} value={cf.id}>{cf.name}</option>
+                ))}
+              </select>
+              {cfError && <p className="text-xs text-red-600 mt-1">{cfError}</p>}
+            </div>
             <div>
               <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Name *</label>
               <input data-testid="input-name" value={f.name} onChange={(e) => update({ name: e.target.value })} className={inputCls} placeholder="e.g. Checkout flow" />

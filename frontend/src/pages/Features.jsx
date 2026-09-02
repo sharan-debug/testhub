@@ -9,6 +9,7 @@ export default function Features() {
   const [q, setQ] = useState("");
   const [activeTag, setActiveTag] = useState("");
   const [loading, setLoading] = useState(true);
+  const [coreFeaturesMap, setCoreFeaturesMap] = useState({});
   const navigate = useNavigate();
   const { user } = useAuth();
   const canEdit = user?.role !== "viewer";
@@ -22,7 +23,14 @@ export default function Features() {
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    api.get("/core-features").then((r) => {
+      const map = {};
+      r.data.forEach((cf) => { map[cf.id] = cf.name; });
+      setCoreFeaturesMap(map);
+    }).catch(() => {});
+  }, []);
 
   const allTags = useMemo(() => {
     const s = new Set();
@@ -134,6 +142,9 @@ export default function Features() {
           {filtered.map((f) => (
             <Link key={f.id} to={`/features/${f.id}`} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-zinc-50 transition-colors" data-testid={`feature-row-${f.id}`}>
               <div className="col-span-4 min-w-0">
+                {f.core_feature_id && coreFeaturesMap[f.core_feature_id] && (
+                  <div className="text-[10px] font-mono text-zinc-400 truncate mb-0.5" data-testid={`core-feature-name-${f.id}`}>{coreFeaturesMap[f.core_feature_id]}</div>
+                )}
                 <div className="font-medium text-sm truncate">{f.name}</div>
                 <div className="text-xs text-zinc-500 truncate">{f.description || "—"}</div>
               </div>
