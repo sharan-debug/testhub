@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { useAuth } from "../contexts/AuthContext";
 import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ export default function FeatureEdit() {
   const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [f, setF] = useState(EMPTY);
   const [tagInput, setTagInput] = useState("");
   const [saving, setSaving] = useState(false);
@@ -145,6 +147,12 @@ export default function FeatureEdit() {
               <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Jira Ticket</label>
               <input data-testid="input-jira" value={f.jira_ticket} onChange={(e) => update({ jira_ticket: e.target.value })} className={inputCls} placeholder="e.g. PROJ-123" />
             </div>
+            <div>
+              <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Owner</label>
+              <div className="h-9 px-3 flex items-center text-sm text-zinc-500 bg-zinc-50 border border-zinc-200 rounded-sm" data-testid="owner-display">
+                {user?.name || "—"}
+              </div>
+            </div>
             {isEdit && (
               <div>
                 <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Status</label>
@@ -156,7 +164,7 @@ export default function FeatureEdit() {
             )}
             <div className="md:col-span-2">
               <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Description</label>
-              <textarea data-testid="input-description" value={f.description} onChange={(e) => update({ description: e.target.value })} className={textareaCls} rows={2} />
+              <textarea data-testid="input-description" value={f.description} onChange={(e) => update({ description: e.target.value })} className={textareaCls} rows={2} placeholder="What does this feature do? e.g. Cancellation flow that lets users downgrade or cancel their subscription" />
             </div>
             <div className="md:col-span-2">
               <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Tags</label>
@@ -184,9 +192,24 @@ export default function FeatureEdit() {
         </Section>
 
         {[
-          { key: "test_data", title: "Test Data", placeholder: "Users, records, seeds…", testid: "section-test-data" },
-          { key: "test_steps", title: "Test Steps", placeholder: "1. Do X\n2. Verify Y", testid: "section-test-steps" },
-          { key: "mocking_steps", title: "Mocking Steps", placeholder: "How to stub external services, feature flags, etc.", testid: "section-mocking-steps" },
+          {
+            key: "test_data",
+            title: "Test Data",
+            placeholder: "user_id: 123456\nplan: premium_monthly\ncancellation_reason: price\nemail: testuser@example.com",
+            testid: "section-test-data",
+          },
+          {
+            key: "test_steps",
+            title: "Test Steps",
+            placeholder: "1. Log in as user 123456\n2. Navigate to /account/cancel\n3. Select reason: price → click Continue\n4. Verify the offer screen appears\n5. Click Confirm → expect redirect to /account with cancellation banner",
+            testid: "section-test-steps",
+          },
+          {
+            key: "mocking_steps",
+            title: "Mocking Steps",
+            placeholder: "1. Set CANCELLATION_FLOW_V2 = TEST in Unleash\n2. Mock POST /api/cancel → 200 { status: 'cancelled' }\n3. Ensure Redis key r:jar:cancellation:{user_id} is cleared before starting",
+            testid: "section-mocking-steps",
+          },
         ].map((s) => (
           <Section key={s.key} title={s.title} testid={s.testid}>
             <textarea
@@ -232,16 +255,16 @@ export default function FeatureEdit() {
         </Section>
 
         {[
-          { key: "mongo_collections", title: "MongoDB Collections", ph: "collection.name", testid: "section-mongo" },
-          { key: "redis_keys", title: "Redis Keys", ph: "cache:user:{id}", testid: "section-redis" },
-          { key: "experiments", title: "Experiments / Flags", ph: "flag_name", testid: "section-experiments" },
+          { key: "mongo_collections", title: "MongoDB Collections", ph: "e.g. cancellations", descPh: "What is stored here?", testid: "section-mongo" },
+          { key: "redis_keys", title: "Redis Keys", ph: "e.g. r:jar:cancellation:{user_id}", descPh: "What this key holds", testid: "section-redis" },
+          { key: "experiments", title: "Experiments / Flags", ph: "e.g. CANCELLATION_FLOW_V2", descPh: "Options: CONTROL / TEST", testid: "section-experiments" },
         ].map((s) => (
           <Section key={s.key} title={s.title} testid={s.testid}>
             <div className="space-y-2">
               {(f[s.key] || []).map((item, i) => (
                 <div key={i} className="flex gap-2" data-testid={`${s.key}-row-${i}`}>
                   <input value={item.key} onChange={(e) => setKV(s.key, i, { key: e.target.value })} placeholder={s.ph} className={`${inputBaseCls} shrink-0 w-64 font-mono text-xs`} />
-                  <input value={item.description} onChange={(e) => setKV(s.key, i, { description: e.target.value })} placeholder="Description" className={`${inputBaseCls} flex-1 min-w-0`} />
+                  <input value={item.description} onChange={(e) => setKV(s.key, i, { description: e.target.value })} placeholder={s.descPh} className={`${inputBaseCls} flex-1 min-w-0`} />
                   <button onClick={() => removeKV(s.key, i)} className="h-9 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm">
                     <Trash2 className="w-4 h-4" />
                   </button>
