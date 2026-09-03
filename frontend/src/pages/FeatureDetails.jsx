@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { Pencil, Trash2, ArrowLeft, Users } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -51,6 +51,14 @@ export default function FeatureDetail() {
     } catch (e) { toast.error("Delete failed"); }
   };
 
+  const handleVerify = async () => {
+    try {
+      const r = await api.post(`/features/${id}/verify`);
+      setFeature(r.data);
+      toast.success("Marked as verified");
+    } catch (e) { toast.error("Verify failed"); }
+  };
+
   if (!feature) return <div className="p-8 text-sm text-zinc-500">Loading…</div>;
 
   return (
@@ -66,13 +74,26 @@ export default function FeatureDetail() {
               {coreFeaturesMap[feature.core_feature_id]}
             </p>
           )}
-          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight break-words" data-testid="feature-name">{feature.name}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight break-words" data-testid="feature-name">{feature.name}</h1>
+            {feature.status === "archived" && (
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-200" data-testid="status-badge">archived</span>
+            )}
+          </div>
           {feature.description && <p className="text-sm text-zinc-600 mt-2 max-w-2xl">{feature.description}</p>}
           <div className="flex items-center gap-4 mt-4 text-xs text-zinc-500 font-mono flex-wrap">
             {feature.owner && <span>owner: <span className="text-zinc-900">{feature.owner}</span></span>}
+            {feature.jira_ticket && <span>jira: <span className="text-zinc-900">{feature.jira_ticket}</span></span>}
             <span>updated: {new Date(feature.updated_at).toLocaleString()}</span>
+            {feature.created_by && <span>by: <span className="text-zinc-900">{feature.created_by}</span></span>}
             <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {(feature.contributors || []).length}</span>
           </div>
+          {feature.last_verified_at && (
+            <div className="flex items-center gap-1.5 mt-2 text-xs font-mono text-emerald-700" data-testid="verified-meta">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              verified {new Date(feature.last_verified_at).toLocaleDateString()} by {feature.last_verified_by}
+            </div>
+          )}
           {(feature.tags || []).length > 0 && (
             <div className="flex gap-1.5 mt-3 flex-wrap">
               {feature.tags.map((t) => (
@@ -81,26 +102,36 @@ export default function FeatureDetail() {
             </div>
           )}
         </div>
-        {canEdit && (
-          <div className="flex gap-2 shrink-0">
-            <button
-              data-testid="edit-feature-btn"
-              type="button"
-              onClick={() => navigate(`/features/${id}/edit`)}
-              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 rounded-sm transition-colors"
-            >
-              <Pencil className="w-3.5 h-3.5" /> Edit
-            </button>
-            <button
-              data-testid="delete-feature-btn"
-              type="button"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 text-red-600 hover:text-red-700 rounded-sm transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
+        <div className="flex gap-2 shrink-0">
+          <button
+            data-testid="verify-feature-btn"
+            type="button"
+            onClick={handleVerify}
+            className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 text-emerald-700 rounded-sm transition-colors"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" /> Verify
+          </button>
+          {canEdit && (
+            <>
+              <button
+                data-testid="edit-feature-btn"
+                type="button"
+                onClick={() => navigate(`/features/${id}/edit`)}
+                className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 rounded-sm transition-colors"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </button>
+              <button
+                data-testid="delete-feature-btn"
+                type="button"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="h-9 px-3 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 text-red-600 hover:text-red-700 rounded-sm transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Delete confirm dialog */}
