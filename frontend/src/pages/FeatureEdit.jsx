@@ -95,6 +95,7 @@ export default function FeatureEdit() {
   };
 
   const inputCls = "w-full h-9 px-3 text-sm border border-zinc-200 rounded-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const inputBaseCls = "h-9 px-3 text-sm border border-zinc-200 rounded-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500";
   const textareaCls = "w-full px-3 py-2 text-sm border border-zinc-200 rounded-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none";
 
   return (
@@ -239,8 +240,8 @@ export default function FeatureEdit() {
             <div className="space-y-2">
               {(f[s.key] || []).map((item, i) => (
                 <div key={i} className="flex gap-2" data-testid={`${s.key}-row-${i}`}>
-                  <input value={item.key} onChange={(e) => setKV(s.key, i, { key: e.target.value })} placeholder={s.ph} className={`${inputCls} w-64 font-mono text-xs`} />
-                  <input value={item.description} onChange={(e) => setKV(s.key, i, { description: e.target.value })} placeholder="Description" className={`${inputCls} flex-1`} />
+                  <input value={item.key} onChange={(e) => setKV(s.key, i, { key: e.target.value })} placeholder={s.ph} className={`${inputBaseCls} shrink-0 w-64 font-mono text-xs`} />
+                  <input value={item.description} onChange={(e) => setKV(s.key, i, { description: e.target.value })} placeholder="Description" className={`${inputBaseCls} flex-1 min-w-0`} />
                   <button onClick={() => removeKV(s.key, i)} className="h-9 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm">
                     <Trash2 className="w-4 h-4" />
                   </button>
