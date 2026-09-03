@@ -11,8 +11,6 @@ const EMPTY = {
   apis: [], mongo_collections: [], redis_keys: [], experiments: [],
 };
 
-const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"];
-
 function Section({ title, children, testid }) {
   return (
     <section className="bg-white border border-zinc-200 rounded-sm p-5" data-testid={testid}>
@@ -57,7 +55,7 @@ export default function FeatureEdit() {
     setTagInput("");
   };
 
-  const addApi = () => update({ apis: [...f.apis, { method: "GET", path: "", description: "", sample_request: "", sample_response: "" }] });
+  const addApi = () => update({ apis: [...f.apis, { curl: "", description: "" }] });
   const removeApi = (i) => update({ apis: f.apis.filter((_, idx) => idx !== i) });
   const setApi = (i, patch) => update({ apis: f.apis.map((a, idx) => idx === i ? { ...a, ...patch } : a) });
 
@@ -201,27 +199,31 @@ export default function FeatureEdit() {
         ))}
 
         <Section title="APIs" testid="section-apis">
+          <p className="text-xs text-zinc-500 mb-3">Paste the full cURL command. Secrets in headers are stored as-is — do not paste production credentials.</p>
           <div className="space-y-3">
             {f.apis.map((a, i) => (
               <div key={i} className="border border-zinc-200 rounded-sm p-3 bg-zinc-50/60" data-testid={`api-editor-${i}`}>
-                <div className="flex gap-2 mb-2">
-                  <select
-                    data-testid={`api-method-${i}`}
-                    value={a.method}
-                    onChange={(e) => setApi(i, { method: e.target.value })}
-                    className="h-9 px-2 text-sm border border-zinc-200 rounded-sm bg-white font-mono w-28 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {METHODS.map((m) => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                  <input data-testid={`api-path-${i}`} value={a.path} onChange={(e) => setApi(i, { path: e.target.value })} className={`${inputCls} flex-1 font-mono text-xs`} placeholder="/api/checkout/init" />
-                  <button onClick={() => removeApi(i)} data-testid={`api-remove-${i}`} className="h-9 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm">
+                <div className="flex gap-2 items-start">
+                  <div className="flex-1 min-w-0 space-y-2">
+                    <textarea
+                      data-testid={`api-curl-${i}`}
+                      value={a.curl}
+                      onChange={(e) => setApi(i, { curl: e.target.value })}
+                      rows={3}
+                      placeholder={"curl -X POST 'https://api.example.com/checkout' \\\n  -H 'Authorization: Bearer {token}' \\\n  -d '{\"plan\":\"premium\"}'"}
+                      className={`${textareaCls} font-mono text-xs`}
+                    />
+                    <input
+                      data-testid={`api-desc-${i}`}
+                      value={a.description}
+                      onChange={(e) => setApi(i, { description: e.target.value })}
+                      className={inputCls}
+                      placeholder="Description (optional)"
+                    />
+                  </div>
+                  <button onClick={() => removeApi(i)} data-testid={`api-remove-${i}`} className="h-9 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-sm shrink-0">
                     <Trash2 className="w-4 h-4" />
                   </button>
-                </div>
-                <input data-testid={`api-desc-${i}`} value={a.description} onChange={(e) => setApi(i, { description: e.target.value })} className={`${inputCls} mb-2`} placeholder="Description" />
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <textarea data-testid={`api-req-${i}`} value={a.sample_request} onChange={(e) => setApi(i, { sample_request: e.target.value })} rows={3} placeholder="Sample request (JSON)" className={`${textareaCls} font-mono text-[11px]`} />
-                  <textarea data-testid={`api-res-${i}`} value={a.sample_response} onChange={(e) => setApi(i, { sample_response: e.target.value })} rows={3} placeholder="Sample response (JSON)" className={`${textareaCls} font-mono text-[11px]`} />
                 </div>
               </div>
             ))}
