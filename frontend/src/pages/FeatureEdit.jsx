@@ -5,7 +5,8 @@ import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
 import { toast } from "sonner";
 
 const EMPTY = {
-  name: "", core_feature_id: "", description: "", owner: "", tags: [],
+  name: "", core_feature_id: "", jira_ticket: "", description: "", tags: [],
+  status: "active",
   test_data: "", test_steps: "", mocking_steps: "",
   apis: [], mongo_collections: [], redis_keys: [], experiments: [],
 };
@@ -71,8 +72,9 @@ export default function FeatureEdit() {
     setSaving(true);
     try {
       const payload = {
-        name: f.name, core_feature_id: f.core_feature_id, description: f.description,
-        owner: f.owner, tags: f.tags,
+        name: f.name, core_feature_id: f.core_feature_id,
+        jira_ticket: f.jira_ticket, description: f.description, tags: f.tags,
+        ...(isEdit ? { status: f.status } : {}),
         test_data: f.test_data, test_steps: f.test_steps, mocking_steps: f.mocking_steps,
         apis: f.apis, mongo_collections: f.mongo_collections, redis_keys: f.redis_keys, experiments: f.experiments,
       };
@@ -139,9 +141,18 @@ export default function FeatureEdit() {
               <input data-testid="input-name" value={f.name} onChange={(e) => update({ name: e.target.value })} className={inputCls} placeholder="e.g. Checkout flow" />
             </div>
             <div>
-              <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Owner</label>
-              <input data-testid="input-owner" value={f.owner} onChange={(e) => update({ owner: e.target.value })} className={inputCls} placeholder="Team or person" />
+              <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Jira Ticket</label>
+              <input data-testid="input-jira" value={f.jira_ticket} onChange={(e) => update({ jira_ticket: e.target.value })} className={inputCls} placeholder="e.g. PROJ-123" />
             </div>
+            {isEdit && (
+              <div>
+                <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Status</label>
+                <select data-testid="input-status" value={f.status} onChange={(e) => update({ status: e.target.value })} className={inputCls}>
+                  <option value="active">Active</option>
+                  <option value="archived">Archived</option>
+                </select>
+              </div>
+            )}
             <div className="md:col-span-2">
               <label className="text-xs font-mono uppercase text-zinc-500 block mb-1">Description</label>
               <textarea data-testid="input-description" value={f.description} onChange={(e) => update({ description: e.target.value })} className={textareaCls} rows={2} />

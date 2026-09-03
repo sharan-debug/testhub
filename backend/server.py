@@ -65,6 +65,8 @@ class Feature(BaseModel):
     description: str = ""
     owner: str = ""
     tags: List[str] = Field(default_factory=list)
+    jira_ticket: str = ""
+    status: str = "active"
     test_data: str = ""
     test_steps: str = ""
     mocking_steps: str = ""
@@ -74,16 +76,19 @@ class Feature(BaseModel):
     experiments: List[KeyValueItem] = Field(default_factory=list)
     contributors: List[str] = Field(default_factory=list)
     created_by: str = ""
+    updated_by: str = ""
     created_at: str = Field(default_factory=now_iso)
     updated_at: str = Field(default_factory=now_iso)
+    last_verified_at: Optional[str] = None
+    last_verified_by: Optional[str] = None
 
 
 class FeatureCreate(BaseModel):
     name: str
     core_feature_id: str = ""
     description: str = ""
-    owner: str = ""
     tags: List[str] = Field(default_factory=list)
+    jira_ticket: str = ""
     test_data: str = ""
     test_steps: str = ""
     mocking_steps: str = ""
@@ -97,8 +102,9 @@ class FeatureUpdate(BaseModel):
     name: Optional[str] = None
     core_feature_id: Optional[str] = None
     description: Optional[str] = None
-    owner: Optional[str] = None
     tags: Optional[List[str]] = None
+    jira_ticket: Optional[str] = None
+    status: Optional[str] = None
     test_data: Optional[str] = None
     test_steps: Optional[str] = None
     mocking_steps: Optional[str] = None
@@ -393,7 +399,9 @@ async def create_feature(payload: FeatureCreate, request: Request):
     await _validate_core_feature_id(payload.core_feature_id)
     feature = Feature(
         **payload.model_dump(),
+        owner=user.name,
         created_by=user.email,
+        updated_by=user.name,
         contributors=[user.email],
     )
     doc = feature.model_dump()
@@ -413,12 +421,19 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
     if payload.core_feature_id is not None:
         await _validate_core_feature_id(payload.core_feature_id)
 
+    if payload.status is not None and payload.status not in ("active", "archived"):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "INVALID_STATUS", "message": "status must be 'active' or 'archived'"}},
+        )
+
     updates = {k: v for k, v in payload.model_dump().items() if v is not None}
     for key in ["apis", "mongo_collections", "redis_keys", "experiments"]:
         if key in updates:
             updates[key] = [item if isinstance(item, dict) else item.model_dump() for item in updates[key]]
 
     updates["updated_at"] = now_iso()
+    updates["updated_by"] = user.name
     contributors = set(existing.get("contributors", []))
     contributors.add(user.email)
     updates["contributors"] = list(contributors)
@@ -438,6 +453,22 @@ async def delete_feature(feature_id: str, request: Request):
     await db.features.delete_one({"id": feature_id})
     await log_activity(user, "deleted", feature_id, existing["name"])
     return {"ok": True}
+
+
+@api_router.post("/features/{feature_id}/verify")
+async def verify_feature(feature_id: str, request: Request):
+    user = await get_current_user(request)
+    existing = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    now = now_iso()
+    await db.features.update_one(
+        {"id": feature_id},
+        {"$set": {"last_verified_at": now, "last_verified_by": user.email}},
+    )
+    await log_activity(user, "verified", feature_id, existing["name"])
+    doc = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    return doc
 
 
 # ============================================================
@@ -529,8 +560,10 @@ async def import_features(request: Request, file: UploadFile = File(...)):
             feature = Feature(
                 name=name,
                 description=sval("description"),
-                owner=sval("owner"),
+                owner=user.name,
                 tags=parse_list(row.get("tags")),
+                jira_ticket=sval("jira_ticket"),
+                status="active",
                 test_data=sval("test_data"),
                 test_steps=sval("test_steps"),
                 mocking_steps=sval("mocking_steps"),
@@ -539,6 +572,7 @@ async def import_features(request: Request, file: UploadFile = File(...)):
                 redis_keys=parse_kv_list(row.get("redis_keys")),
                 experiments=parse_kv_list(row.get("experiments")),
                 created_by=user.email,
+                updated_by=user.name,
                 contributors=[user.email],
             )
             await db.features.insert_one(feature.model_dump())

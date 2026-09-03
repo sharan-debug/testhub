@@ -145,7 +145,12 @@ export default function Features() {
                 {f.core_feature_id && coreFeaturesMap[f.core_feature_id] && (
                   <div className="text-[10px] font-mono text-zinc-400 truncate mb-0.5" data-testid={`core-feature-name-${f.id}`}>{coreFeaturesMap[f.core_feature_id]}</div>
                 )}
-                <div className="font-medium text-sm truncate">{f.name}</div>
+                <div className="flex items-center gap-1.5">
+                  <div className="font-medium text-sm truncate">{f.name}</div>
+                  {f.status === "archived" && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-amber-100 text-amber-700 shrink-0">archived</span>
+                  )}
+                </div>
                 <div className="text-xs text-zinc-500 truncate">{f.description || "—"}</div>
               </div>
               <div className="col-span-2 text-xs text-zinc-700 truncate">{f.owner || "—"}</div>
