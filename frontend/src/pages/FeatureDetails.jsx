@@ -172,31 +172,14 @@ export default function FeatureDetail() {
           </Section>
         )}
 
-        {(feature.apis || []).length > 0 && (
+        {(feature.apis || []).filter(a => a.curl || a.description).length > 0 && (
           <Section title="APIs" testid="section-apis">
             <div className="divide-y divide-zinc-100">
-              {feature.apis.map((a, i) => (
+              {feature.apis.filter(a => a.curl || a.description).map((a, i) => (
                 <div key={i} className="py-3 first:pt-0 last:pb-0" data-testid={`api-row-${i}`}>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className={`method-badge method-${(a.method || "GET").toUpperCase()}`}>{(a.method || "GET").toUpperCase()}</span>
-                    <code className="text-xs font-mono text-zinc-900">{a.path}</code>
-                  </div>
-                  {a.description && <p className="text-xs text-zinc-600 mt-1">{a.description}</p>}
-                  {(a.sample_request || a.sample_response) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
-                      {a.sample_request && (
-                        <div>
-                          <p className="text-[10px] font-mono uppercase text-zinc-500 mb-1">Request</p>
-                          <pre className="text-[11px] font-mono bg-zinc-900 text-zinc-100 rounded-sm p-2 overflow-x-auto">{a.sample_request}</pre>
-                        </div>
-                      )}
-                      {a.sample_response && (
-                        <div>
-                          <p className="text-[10px] font-mono uppercase text-zinc-500 mb-1">Response</p>
-                          <pre className="text-[11px] font-mono bg-zinc-900 text-zinc-100 rounded-sm p-2 overflow-x-auto">{a.sample_response}</pre>
-                        </div>
-                      )}
-                    </div>
+                  {a.description && <p className="text-xs text-zinc-600 mb-2">{a.description}</p>}
+                  {a.curl && (
+                    <pre className="text-[11px] font-mono bg-zinc-900 text-zinc-100 rounded-sm p-3 overflow-x-auto whitespace-pre-wrap break-all">{a.curl}</pre>
                   )}
                 </div>
               ))}

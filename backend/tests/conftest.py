@@ -6,7 +6,8 @@ os.environ.setdefault("MONGO_URL", "mongodb://localhost:27017")
 os.environ.setdefault("DB_NAME", "testhub_test")
 os.environ.setdefault("ANTHROPIC_API_KEY", "test-key")
 
-from server import app, db
+from server import app
+from database import db
 
 
 @pytest.fixture(autouse=True)

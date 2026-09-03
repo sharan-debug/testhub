@@ -58,6 +58,42 @@ class TestFeatureUpdate:
         assert r.json()["status"] == "archived"
 
 
+class TestApiCurl:
+    async def test_curl_stored_and_returned(self, editor, cf_id):
+        curl = "curl -X POST 'https://api.example.com/checkout' -H 'Content-Type: application/json'"
+        r = await editor.post("/api/features", json={
+            "name": "F1", "core_feature_id": cf_id,
+            "apis": [{"curl": curl, "description": "Initiate checkout"}],
+        })
+        assert r.status_code == 200
+        apis = r.json()["apis"]
+        assert len(apis) == 1
+        assert apis[0]["curl"] == curl
+        assert apis[0]["description"] == "Initiate checkout"
+
+    async def test_api_entry_has_no_method_or_path_fields(self, editor, cf_id):
+        r = await editor.post("/api/features", json={
+            "name": "F1", "core_feature_id": cf_id,
+            "apis": [{"curl": "curl https://example.com", "description": ""}],
+        })
+        assert r.status_code == 200
+        entry = r.json()["apis"][0]
+        assert "method" not in entry
+        assert "path" not in entry
+        assert "sample_request" not in entry
+
+    async def test_multiple_api_entries(self, editor, cf_id):
+        r = await editor.post("/api/features", json={
+            "name": "F1", "core_feature_id": cf_id,
+            "apis": [
+                {"curl": "curl https://api.example.com/a", "description": "endpoint A"},
+                {"curl": "curl -X POST https://api.example.com/b", "description": "endpoint B"},
+            ],
+        })
+        assert r.status_code == 200
+        assert len(r.json()["apis"]) == 2
+
+
 class TestVerify:
     async def test_verify_sets_metadata(self, editor, cf_id):
         create = await editor.post("/api/features", json={"name": "F1", "core_feature_id": cf_id})
