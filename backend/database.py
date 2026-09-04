@@ -15,3 +15,21 @@ db = _mongo_client[os.environ['DB_NAME']]
 
 def shutdown_db():
     _mongo_client.close()
+
+
+async def ensure_indexes():
+    await db.features.create_index("id", unique=True)
+    await db.features.create_index([("updated_at", -1)])
+    await db.features.create_index("owner")
+    await db.features.create_index("tags")
+    await db.features.create_index("core_feature_id")
+    await db.features.create_index("status")
+
+    await db.users.create_index("email", unique=True)
+    await db.user_sessions.create_index("token", unique=True)
+    await db.user_sessions.create_index("user_id")
+
+    await db.core_features.create_index("id", unique=True)
+
+    await db.activity.create_index([("created_at", -1)])
+    await db.activity.create_index("feature_id")
