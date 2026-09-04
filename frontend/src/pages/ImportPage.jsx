@@ -37,8 +37,7 @@ export default function ImportPage() {
         <div
           onClick={() => fileRef.current?.click()}
           className="border-2 border-dashed border-zinc-300 rounded-sm p-10 text-center cursor-pointer hover:border-zinc-500 transition-colors"
-          data-testid="upload-dropzone"
-        >
+          data-testid="upload-dropzone">
           <FileSpreadsheet className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
           {file ? (
             <div>

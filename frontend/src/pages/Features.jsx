@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { api } from "../lib/api";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus, Search, Upload } from "lucide-react";
+import { Zap, Search, Upload } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Features() {
@@ -72,10 +72,10 @@ export default function Features() {
             <button
               data-testid="features-new-btn"
               type="button"
-              onClick={() => navigate("/features/new")}
+              onClick={() => navigate("/features/quick-add")}
               className="inline-flex items-center gap-1.5 h-9 px-3 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm transition-colors"
             >
-              <Plus className="w-4 h-4" /> New
+              <Zap className="w-4 h-4" /> Quick Add
             </button>
           </div>
         )}
@@ -130,10 +130,10 @@ export default function Features() {
               <button
                 data-testid="features-empty-new"
                 type="button"
-                onClick={() => navigate("/features/new")}
+                onClick={() => navigate("/features/quick-add")}
                 className="inline-flex items-center gap-1.5 h-9 px-3 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm"
               >
-                <Plus className="w-4 h-4" />Add one
+                <Zap className="w-4 h-4" />Add one
               </button>
             )}
           </div>
