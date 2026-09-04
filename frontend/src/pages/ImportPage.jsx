@@ -230,7 +230,14 @@ export default function ImportPage() {
       </div>
 
       <div className="bg-zinc-50 border border-zinc-200 rounded-sm p-5">
-        <h3 className="font-heading font-black text-sm tracking-tight uppercase text-zinc-500 mb-2">Expected columns (case-insensitive)</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="font-heading font-black text-sm tracking-tight uppercase text-zinc-500">Expected columns (case-insensitive)</h3>
+          <a
+            href="/sample_import.csv"
+            download="sample_import.csv"
+            className="text-xs text-zinc-500 hover:text-zinc-900 underline underline-offset-2 font-mono"
+          >Download sample CSV</a>
+        </div>
         <ul className="text-xs text-zinc-600 space-y-1 font-mono">
           <li>• name <span className="text-zinc-400">(required)</span></li>
           <li>• description, owner, tags <span className="text-zinc-400">(comma-separated)</span></li>

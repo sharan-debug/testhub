@@ -1,0 +1,23 @@
+name,description,tags,test_data,test_steps,mocking_steps,api,mongo_collections,redis_keys,experiments
+Cancellation Flow,Handles user cancellation and downgrade paths,"cancellation,billing","user_id: 123456
+plan: premium_monthly
+email: testuser@example.com","1. Log in as user 123456
+2. Go to /account/cancel
+3. Select reason: price
+4. Click Continue
+5. Verify offer screen appears","1. Set CANCELLATION_FLOW_V2 = TEST in Unleash
+2. Mock POST /api/cancel → 200 {status: cancelled}","curl -X POST 'https://api.example.com/cancel' -H 'Authorization: Bearer {token}' -d '{""reason"":""price""}'",cancellations,r:jar:cancellation:{user_id},CANCELLATION_FLOW_V2
+Checkout Flow,Payment and plan upgrade flow,"checkout,payments","user_id: 654321
+plan: free
+card: 4242424242424242","1. Log in as user 654321
+2. Go to /upgrade
+3. Select Premium plan
+4. Enter test card details
+5. Click Pay","1. Mock POST /api/payments/charge → 200
+2. Mock GET /api/plans → return premium plan","curl -X GET 'https://api.example.com/plans' -H 'Authorization: Bearer {token}'",payments,r:jar:checkout:{user_id},CHECKOUT_V2
+Referral Bonus,Awards credits when a referred user converts,"referral,credits","referrer_id: 111
+referred_id: 222","1. Register referred user with referral code
+2. Referred user completes first payment
+3. Verify referrer receives credit email
+4. Check referrer balance increased","1. Mock POST /api/referral/award → 200
+2. Set REFERRAL_ENABLED = TEST","curl -X POST 'https://api.example.com/referral/award' -H 'Authorization: Bearer {token}' -d '{""referrer_id"":""111""}'",referrals,,REFERRAL_ENABLED

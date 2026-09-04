@@ -26,10 +26,13 @@ async def ensure_indexes():
     await db.features.create_index("status")
 
     await db.users.create_index("email", unique=True)
-    await db.user_sessions.create_index("token", unique=True)
+    await db.user_sessions.create_index("session_token", unique=True)
     await db.user_sessions.create_index("user_id")
 
     await db.core_features.create_index("id", unique=True)
 
     await db.activity.create_index([("created_at", -1)])
     await db.activity.create_index("feature_id")
+
+    await db.chat_messages.create_index("session_id")
+    await db.chat_messages.create_index([("timestamp", 1)])

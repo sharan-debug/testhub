@@ -91,7 +91,7 @@ async def chat(payload: ChatMessageIn, request: Request):
         full = []
         try:
             async with ac.messages.stream(
-                model="claude-haiku-4-5",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=2048,
                 system=system_message,
                 messages=messages,
@@ -103,15 +103,24 @@ async def chat(payload: ChatMessageIn, request: Request):
             logger.exception("chat error")
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
+        response_text = "".join(full)
+        response_lower = response_text.lower()
+        sources = [
+            {"id": f["id"], "name": f["name"]}
+            for f in features
+            if f.get("name") and f["name"].lower() in response_lower
+        ][:6]
+
         await db.chat_messages.insert_one({
             "id": f"msg_{uuid.uuid4().hex[:12]}",
             "session_id": session_id,
             "user_email": user.email,
             "role": "assistant",
-            "content": "".join(full),
+            "content": response_text,
+            "sources": sources,
             "timestamp": now_iso(),
         })
-        yield f"data: {json.dumps({'done': True, 'session_id': session_id})}\n\n"
+        yield f"data: {json.dumps({'done': True, 'session_id': session_id, 'sources': sources})}\n\n"
 
     return StreamingResponse(
         event_stream(),
