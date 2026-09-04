@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Beaker, LayoutDashboard, Library, Upload, LogOut, Sparkles, Plus, Settings } from "lucide-react";
+import { Beaker, LayoutDashboard, Library, Upload, LogOut, Sparkles, Zap, Settings } from "lucide-react";
 import ChatAgent from "./ChatAgent";
 import { useState } from "react";
 
@@ -84,10 +84,10 @@ export default function Layout() {
             <button
               data-testid="new-feature-button"
               type="button"
-              onClick={() => navigate("/features/new")}
+              onClick={() => navigate("/features/quick-add")}
               className="w-full h-9 bg-black hover:bg-zinc-800 text-white rounded-sm text-sm font-medium flex items-center justify-center gap-1.5 transition-colors"
             >
-              <Plus className="w-4 h-4" /> New Feature
+              <Zap className="w-4 h-4" /> Quick Add
             </button>
           </div>
         )}

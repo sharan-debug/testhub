@@ -8,6 +8,7 @@ import FeatureDetail from "./pages/FeatureDetails";
 import FeatureEdit from "./pages/FeatureEdit";
 import ImportPage from "./pages/ImportPage";
 import AdminCoreFeatures from "./pages/AdminCoreFeatures";
+import QuickAdd from "./pages/QuickAdd";
 import Layout from "./components/Layout";
 import { Toaster } from "sonner";
 
@@ -38,6 +39,7 @@ function AppRouter() {
       >
         <Route index element={<Dashboard />} />
         <Route path="features" element={<Features />} />
+        <Route path="features/quick-add" element={<QuickAdd />} />
         <Route path="features/new" element={<FeatureEdit />} />
         <Route path="features/:id" element={<FeatureDetail />} />
         <Route path="features/:id/edit" element={<FeatureEdit />} />
