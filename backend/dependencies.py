@@ -2,7 +2,7 @@ import uuid
 import logging
 from fastapi import HTTPException, Request, Response
 from datetime import datetime, timezone, timedelta
-from database import db
+from database import db, SECURE_COOKIES
 from models import User, now_iso
 
 logger = logging.getLogger(__name__)
@@ -60,7 +60,7 @@ async def _create_session(user_id: str, response: Response) -> str:
     })
     response.set_cookie(
         key="session_token", value=session_token,
-        max_age=7 * 24 * 60 * 60, httponly=True, secure=False, samesite="lax", path="/",
+        max_age=7 * 24 * 60 * 60, httponly=True, secure=SECURE_COOKIES, samesite="lax", path="/",
     )
     return session_token
 
