@@ -1,13 +1,122 @@
 import io
 import json
+import re
 import pandas as pd
-from fastapi import APIRouter, HTTPException, Request, UploadFile, File
+from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from typing import Optional, Dict, Any
 from database import db
 from models import Feature, FeatureCreate, FeatureUpdate, now_iso
 from dependencies import get_current_user, require_role, log_activity
 
 router = APIRouter(prefix="/api/features")
+
+
+def _sval(row, k: str) -> str:
+    v = row.get(k, "")
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return ""
+    return str(v).strip()
+
+
+def _parse_list(v) -> list:
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return []
+    s = str(v).strip()
+    if not s:
+        return []
+    try:
+        j = json.loads(s)
+        if isinstance(j, list):
+            return j
+    except Exception:
+        pass
+    return [item.strip() for item in s.split(",") if item.strip()]
+
+
+def _parse_kv_list(v) -> list:
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return []
+    s = str(v).strip()
+    if not s:
+        return []
+    try:
+        j = json.loads(s)
+        if isinstance(j, list):
+            return [
+                {
+                    "key": (item.get("key") if isinstance(item, dict) else str(item)),
+                    "description": item.get("description", "") if isinstance(item, dict) else "",
+                }
+                for item in j
+            ]
+    except Exception:
+        pass
+    return [{"key": item.strip(), "description": ""} for item in s.split("\n") if item.strip()]
+
+
+def _parse_apis(v) -> list:
+    if v is None or (isinstance(v, float) and pd.isna(v)):
+        return []
+    s = str(v).strip()
+    if not s:
+        return []
+    try:
+        j = json.loads(s)
+        if isinstance(j, list):
+            return [
+                {"curl": item.get("curl", ""), "description": item.get("description", "")}
+                if isinstance(item, dict)
+                else {"curl": str(item), "description": ""}
+                for item in j
+            ]
+    except Exception:
+        pass
+    return [{"curl": line.strip(), "description": ""} for line in s.split("\n") if line.strip()]
+
+
+def _parse_df(contents: bytes, filename: str) -> "pd.DataFrame":
+    try:
+        if filename.endswith(".csv"):
+            df = pd.read_csv(io.BytesIO(contents))
+        elif filename.endswith((".xlsx", ".xls")):
+            df = pd.read_excel(io.BytesIO(contents))
+        else:
+            raise HTTPException(status_code=400, detail="Only .csv, .xlsx, .xls supported")
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Parse error: {e}")
+    df.columns = [c.strip().lower() for c in df.columns]
+    return df
+
+
+def _api_val(row):
+    """Return API column value — accepts both 'api' (spec) and 'apis' (legacy)."""
+    v = row.get("api")
+    if v is not None and not (isinstance(v, float) and pd.isna(v)):
+        return v
+    return row.get("apis")
+
+
+def _build_feature(row, user) -> Feature:
+    return Feature(
+        name=str(row.get("name", "")).strip(),
+        description=_sval(row, "description"),
+        owner=user.name,
+        tags=_parse_list(row.get("tags")),
+        jira_ticket=_sval(row, "jira_ticket"),
+        status="active",
+        test_data=_sval(row, "test_data"),
+        test_steps=_sval(row, "test_steps"),
+        mocking_steps=_sval(row, "mocking_steps"),
+        apis=_parse_apis(_api_val(row)),
+        mongo_collections=_parse_kv_list(row.get("mongo_collections")),
+        redis_keys=_parse_kv_list(row.get("redis_keys")),
+        experiments=_parse_kv_list(row.get("experiments")),
+        created_by=user.email,
+        updated_by=user.name,
+        contributors=[user.email],
+    )
 
 
 async def _validate_core_feature_id(core_feature_id: str):
@@ -24,104 +133,89 @@ async def _validate_core_feature_id(core_feature_id: str):
         )
 
 
-@router.post("/import")
-async def import_features(request: Request, file: UploadFile = File(...)):
+@router.post("/import/preview")
+async def preview_import(request: Request, file: UploadFile = File(...)):
+    """Parse file and return row-level preview with duplicate detection. No writes."""
     user = await require_role("editor")(request)
     contents = await file.read()
-    filename = (file.filename or "").lower()
+    df = _parse_df(contents, (file.filename or "").lower())
 
-    try:
-        if filename.endswith(".csv"):
-            df = pd.read_csv(io.BytesIO(contents))
-        elif filename.endswith((".xlsx", ".xls")):
-            df = pd.read_excel(io.BytesIO(contents))
-        else:
-            raise HTTPException(status_code=400, detail="Only .csv, .xlsx, .xls supported")
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Parse error: {e}")
+    rows = []
+    duplicate_count = 0
 
-    df.columns = [c.strip().lower() for c in df.columns]
+    for idx, row in df.iterrows():
+        name = str(row.get("name", "")).strip()
+        if not name or name.lower() == "nan":
+            continue
+
+        fields_detected = [
+            f for f in ["description", "tags", "test_data", "test_steps", "mocking_steps",
+                         "api", "apis", "mongo_collections", "redis_keys", "experiments"]
+            if row.get(f) is not None
+            and not (isinstance(row.get(f), float) and pd.isna(row.get(f)))
+            and str(row.get(f)).strip()
+        ]
+
+        existing = await db.features.find_one(
+            {"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}},
+            {"_id": 0, "id": 1},
+        )
+        is_dup = bool(existing)
+        if is_dup:
+            duplicate_count += 1
+
+        rows.append({
+            "row": int(idx) + 2,
+            "name": name,
+            "fields_detected": fields_detected,
+            "is_duplicate": is_dup,
+            "valid": True,
+        })
+
+    return {
+        "rows": rows,
+        "total": len(rows),
+        "duplicates": duplicate_count,
+    }
+
+
+@router.post("/import")
+async def import_features(
+    request: Request,
+    file: UploadFile = File(...),
+    skip_duplicates: bool = Form(False),
+):
+    user = await require_role("editor")(request)
+    contents = await file.read()
+    df = _parse_df(contents, (file.filename or "").lower())
+
     imported = 0
+    skipped = 0
     errors = []
+
     for idx, row in df.iterrows():
         try:
             name = str(row.get("name", "")).strip()
             if not name or name.lower() == "nan":
                 continue
 
-            def parse_list(v):
-                if v is None or (isinstance(v, float) and pd.isna(v)):
-                    return []
-                s = str(v).strip()
-                if not s:
-                    return []
-                try:
-                    j = json.loads(s)
-                    if isinstance(j, list):
-                        return j
-                except Exception:
-                    pass
-                return [item.strip() for item in s.split(",") if item.strip()]
+            if skip_duplicates:
+                existing = await db.features.find_one(
+                    {"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}},
+                    {"_id": 0, "id": 1},
+                )
+                if existing:
+                    skipped += 1
+                    continue
 
-            def parse_kv_list(v):
-                if v is None or (isinstance(v, float) and pd.isna(v)):
-                    return []
-                s = str(v).strip()
-                if not s:
-                    return []
-                try:
-                    j = json.loads(s)
-                    if isinstance(j, list):
-                        return [{"key": (item.get("key") if isinstance(item, dict) else str(item)), "description": item.get("description", "") if isinstance(item, dict) else ""} for item in j]
-                except Exception:
-                    pass
-                return [{"key": item.strip(), "description": ""} for item in s.split("\n") if item.strip()]
-
-            def parse_apis(v):
-                if v is None or (isinstance(v, float) and pd.isna(v)):
-                    return []
-                s = str(v).strip()
-                if not s:
-                    return []
-                try:
-                    j = json.loads(s)
-                    if isinstance(j, list):
-                        return [{"curl": item.get("curl", ""), "description": item.get("description", "")} if isinstance(item, dict) else {"curl": str(item), "description": ""} for item in j]
-                except Exception:
-                    pass
-                return [{"curl": line.strip(), "description": ""} for line in s.split("\n") if line.strip()]
-
-            def sval(k):
-                v = row.get(k, "")
-                if v is None or (isinstance(v, float) and pd.isna(v)):
-                    return ""
-                return str(v)
-
-            feature = Feature(
-                name=name,
-                description=sval("description"),
-                owner=user.name,
-                tags=parse_list(row.get("tags")),
-                jira_ticket=sval("jira_ticket"),
-                status="active",
-                test_data=sval("test_data"),
-                test_steps=sval("test_steps"),
-                mocking_steps=sval("mocking_steps"),
-                apis=parse_apis(row.get("apis")),
-                mongo_collections=parse_kv_list(row.get("mongo_collections")),
-                redis_keys=parse_kv_list(row.get("redis_keys")),
-                experiments=parse_kv_list(row.get("experiments")),
-                created_by=user.email,
-                updated_by=user.name,
-                contributors=[user.email],
-            )
+            feature = _build_feature(row, user)
             await db.features.insert_one(feature.model_dump())
             imported += 1
         except Exception as e:
-            errors.append(f"Row {idx}: {e}")
+            errors.append(f"Row {int(idx) + 2}: {e}")
 
-    await log_activity(user, "imported", "", f"{imported} features")
-    return {"imported": imported, "errors": errors}
+    await log_activity(user, "imported", "", f"{imported} features imported, {skipped} skipped")
+    return {"imported": imported, "skipped": skipped, "errors": errors}
 
 
 @router.get("")
@@ -129,16 +223,38 @@ async def list_features(request: Request, q: Optional[str] = None, tag: Optional
     await get_current_user(request)
     query: Dict[str, Any] = {}
     if q:
+        rx = {"$regex": q, "$options": "i"}
         query["$or"] = [
-            {"name": {"$regex": q, "$options": "i"}},
-            {"description": {"$regex": q, "$options": "i"}},
-            {"tags": {"$regex": q, "$options": "i"}},
+            {"name": rx},
+            {"jira_ticket": rx},
+            {"description": rx},
+            {"tags": rx},
+            {"test_data": rx},
+            {"test_steps": rx},
+            {"mocking_steps": rx},
+            {"apis.curl": rx},
+            {"apis.description": rx},
+            {"mongo_collections.key": rx},
+            {"mongo_collections.description": rx},
+            {"redis_keys.key": rx},
+            {"redis_keys.description": rx},
+            {"experiments.key": rx},
+            {"experiments.description": rx},
         ]
     if tag:
         query["tags"] = tag
     if owner:
         query["owner"] = owner
     docs = await db.features.find(query, {"_id": 0}).sort("updated_at", -1).to_list(1000)
+    return docs
+
+
+@router.get("/{feature_id}/history")
+async def get_feature_history(feature_id: str, request: Request, limit: int = 50):
+    await get_current_user(request)
+    docs = await db.activity.find(
+        {"feature_id": feature_id}, {"_id": 0}
+    ).sort("timestamp", -1).to_list(limit)
     return docs
 
 

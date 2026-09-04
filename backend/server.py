@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 import database  # loads .env and creates the DB connection before any router imports
-from database import CORS_ORIGINS, shutdown_db
+from database import CORS_ORIGINS, shutdown_db, ensure_indexes
 from routers import auth, core_features, features, activity, ai, users
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -29,6 +29,11 @@ app.include_router(users.router)
 @app.get("/api/")
 async def root():
     return {"message": "Test Knowledge Hub API"}
+
+
+@app.on_event("startup")
+async def startup():
+    await ensure_indexes()
 
 
 @app.on_event("shutdown")

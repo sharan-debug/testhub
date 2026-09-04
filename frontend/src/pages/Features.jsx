@@ -43,12 +43,16 @@ export default function Features() {
     return features.filter((f) => {
       if (activeTag && !(f.tags || []).includes(activeTag)) return false;
       if (!query) return true;
-      return (
-        (f.name || "").toLowerCase().includes(query) ||
-        (f.description || "").toLowerCase().includes(query) ||
-        (f.owner || "").toLowerCase().includes(query) ||
-        (f.tags || []).some((t) => t.toLowerCase().includes(query))
-      );
+      const hay = [
+        f.name, f.jira_ticket, f.description, f.owner,
+        ...(f.tags || []),
+        f.test_data, f.test_steps, f.mocking_steps,
+        ...(f.apis || []).flatMap((a) => [a.curl, a.description]),
+        ...(f.mongo_collections || []).flatMap((m) => [m.key, m.description]),
+        ...(f.redis_keys || []).flatMap((r) => [r.key, r.description]),
+        ...(f.experiments || []).flatMap((e) => [e.key, e.description]),
+      ].filter(Boolean).join(" ").toLowerCase();
+      return hay.includes(query);
     });
   }, [features, q, activeTag]);
 
@@ -87,7 +91,7 @@ export default function Features() {
           data-testid="feature-search-input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search by name, description, owner, tag…"
+          placeholder="Search name, description, tags, test data, Redis keys, experiments, cURL…"
           className="w-full h-11 pl-9 pr-3 text-sm border border-zinc-200 rounded-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>

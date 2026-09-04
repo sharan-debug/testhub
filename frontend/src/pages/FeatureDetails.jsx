@@ -5,6 +5,21 @@ import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 
+const ACTION_STYLE = {
+  created: "bg-emerald-100 text-emerald-700",
+  updated: "bg-blue-100 text-blue-700",
+  verified: "bg-cyan-100 text-cyan-700",
+  imported: "bg-purple-100 text-purple-700",
+  deleted: "bg-red-100 text-red-700",
+};
+
+function ActionBadge({ action }) {
+  const cls = ACTION_STYLE[action] || "bg-zinc-100 text-zinc-700";
+  return (
+    <span className={`text-[10px] font-mono px-2 py-0.5 rounded-sm shrink-0 ${cls}`}>{action}</span>
+  );
+}
+
 function Section({ title, children, testid }) {
   return (
     <section className="bg-white border border-zinc-200 rounded-sm p-5" data-testid={testid}>
@@ -22,6 +37,7 @@ export default function FeatureDetail() {
   const [feature, setFeature] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [coreFeaturesMap, setCoreFeaturesMap] = useState({});
+  const [history, setHistory] = useState([]);
 
   const load = async () => {
     try {
@@ -43,6 +59,10 @@ export default function FeatureDetail() {
 
   useEffect(() => { load(); }, [id]);
 
+  useEffect(() => {
+    api.get(`/features/${id}/history`).then((r) => setHistory(r.data)).catch(() => {});
+  }, [id]);
+
   const handleDelete = async () => {
     try {
       await api.delete(`/features/${id}`);
@@ -56,6 +76,7 @@ export default function FeatureDetail() {
       const r = await api.post(`/features/${id}/verify`);
       setFeature(r.data);
       toast.success("Marked as verified");
+      api.get(`/features/${id}/history`).then((h) => setHistory(h.data)).catch(() => {});
     } catch (e) { toast.error("Verify failed"); }
   };
 
@@ -212,6 +233,20 @@ export default function FeatureDetail() {
             <div className="flex gap-2 flex-wrap">
               {feature.contributors.map((c) => (
                 <span key={c} className="text-xs font-mono bg-zinc-50 border border-zinc-200 rounded-sm px-2 py-1">{c}</span>
+              ))}
+            </div>
+          </Section>
+        )}
+
+        {history.length > 0 && (
+          <Section title="History" testid="section-history">
+            <div className="divide-y divide-zinc-100">
+              {history.map((event) => (
+                <div key={event.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center gap-3" data-testid={`history-event-${event.id}`}>
+                  <ActionBadge action={event.action} />
+                  <span className="text-sm flex-1 min-w-0 truncate">{event.user_name}</span>
+                  <span className="text-[10px] font-mono text-zinc-400 shrink-0">{new Date(event.timestamp).toLocaleString()}</span>
+                </div>
               ))}
             </div>
           </Section>
