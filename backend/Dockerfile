@@ -7,9 +7,13 @@ RUN pip install uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY server.py ./
+COPY server.py database.py models.py dependencies.py ./
+COPY routers/ ./routers/
 
 ENV PATH="/app/.venv/bin:$PATH"
+
+RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
+USER appuser
 
 EXPOSE 8000
 
