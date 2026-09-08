@@ -41,6 +41,8 @@ class Feature(BaseModel):
     updated_at: str = Field(default_factory=now_iso)
     last_verified_at: Optional[str] = None
     last_verified_by: Optional[str] = None
+    is_deleted: bool = False
+    deleted_at: Optional[str] = None
 
 
 class FeatureCreate(BaseModel):

@@ -5,6 +5,14 @@ import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 
+const FIELD_LABELS = {
+  name: "Name", description: "Description", jira_ticket: "Jira",
+  tags: "Tags", status: "Status", test_data: "Test Data",
+  test_steps: "Test Steps", mocking_steps: "Mocking Steps",
+  core_feature_id: "Core Feature", apis: "APIs",
+  mongo_collections: "MongoDB", redis_keys: "Redis", experiments: "Experiments",
+};
+
 const ACTION_STYLE = {
   created: "bg-emerald-100 text-emerald-700",
   updated: "bg-blue-100 text-blue-700",
@@ -242,9 +250,16 @@ export default function FeatureDetail() {
           <Section title="History" testid="section-history">
             <div className="divide-y divide-zinc-100">
               {history.map((event) => (
-                <div key={event.id} className="py-2.5 first:pt-0 last:pb-0 flex items-center gap-3" data-testid={`history-event-${event.id}`}>
+                <div key={event.id} className="py-2.5 first:pt-0 last:pb-0 flex items-start gap-3" data-testid={`history-event-${event.id}`}>
                   <ActionBadge action={event.action} />
-                  <span className="text-sm flex-1 min-w-0 truncate">{event.user_name}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm">{event.user_name}</p>
+                    {event.changed_fields?.length > 0 && (
+                      <p className="text-[10px] font-mono text-zinc-400 mt-0.5 truncate">
+                        {event.changed_fields.map((f) => FIELD_LABELS[f] || f).join(" · ")}
+                      </p>
+                    )}
+                  </div>
                   <span className="text-[10px] font-mono text-zinc-400 shrink-0">{new Date(event.timestamp).toLocaleString()}</span>
                 </div>
               ))}

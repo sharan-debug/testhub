@@ -10,6 +10,12 @@ from dependencies import get_current_user, require_role, log_activity
 
 router = APIRouter(prefix="/api/features")
 
+_TRACKED_FIELDS = [
+    "name", "description", "jira_ticket", "tags", "status",
+    "test_data", "test_steps", "mocking_steps", "core_feature_id",
+    "apis", "mongo_collections", "redis_keys", "experiments",
+]
+
 
 def _sval(row, k: str) -> str:
     v = row.get(k, "")
@@ -157,7 +163,7 @@ async def preview_import(request: Request, file: UploadFile = File(...)):
         ]
 
         existing = await db.features.find_one(
-            {"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}},
+            {"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}, "is_deleted": {"$ne": True}},
             {"_id": 0, "id": 1},
         )
         is_dup = bool(existing)
@@ -201,7 +207,7 @@ async def import_features(
 
             if skip_duplicates:
                 existing = await db.features.find_one(
-                    {"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}},
+                    {"name": {"$regex": f"^{re.escape(name)}$", "$options": "i"}, "is_deleted": {"$ne": True}},
                     {"_id": 0, "id": 1},
                 )
                 if existing:
@@ -221,7 +227,7 @@ async def import_features(
 @router.get("")
 async def list_features(request: Request, q: Optional[str] = None, tag: Optional[str] = None, owner: Optional[str] = None):
     await get_current_user(request)
-    query: Dict[str, Any] = {}
+    query: Dict[str, Any] = {"is_deleted": {"$ne": True}}
     if q:
         rx = {"$regex": q, "$options": "i"}
         query["$or"] = [
@@ -261,7 +267,7 @@ async def get_feature_history(feature_id: str, request: Request, limit: int = 50
 @router.get("/{feature_id}")
 async def get_feature(feature_id: str, request: Request):
     await get_current_user(request)
-    doc = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    doc = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     if not doc:
         raise HTTPException(status_code=404, detail="Feature not found")
     return doc
@@ -288,7 +294,7 @@ async def create_feature(payload: FeatureCreate, request: Request):
 @router.put("/{feature_id}")
 async def update_feature(feature_id: str, payload: FeatureUpdate, request: Request):
     user = await require_role("editor")(request)
-    existing = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")
 
@@ -312,8 +318,20 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
     contributors.add(user.email)
     updates["contributors"] = list(contributors)
 
+    changed_fields = []
+    for field in _TRACKED_FIELDS:
+        if field not in updates:
+            continue
+        old_val = existing.get(field)
+        new_val = updates[field]
+        if isinstance(old_val, (list, dict)) or isinstance(new_val, (list, dict)):
+            if json.dumps(old_val, sort_keys=True, default=str) != json.dumps(new_val, sort_keys=True, default=str):
+                changed_fields.append(field)
+        elif old_val != new_val:
+            changed_fields.append(field)
+
     await db.features.update_one({"id": feature_id}, {"$set": updates})
-    await log_activity(user, "updated", feature_id, updates.get("name", existing["name"]))
+    await log_activity(user, "updated", feature_id, updates.get("name", existing["name"]), changed_fields=changed_fields)
     doc = await db.features.find_one({"id": feature_id}, {"_id": 0})
     return doc
 
@@ -321,10 +339,13 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
 @router.delete("/{feature_id}")
 async def delete_feature(feature_id: str, request: Request):
     user = await require_role("editor")(request)
-    existing = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")
-    await db.features.delete_one({"id": feature_id})
+    await db.features.update_one(
+        {"id": feature_id},
+        {"$set": {"is_deleted": True, "deleted_at": now_iso()}},
+    )
     await log_activity(user, "deleted", feature_id, existing["name"])
     return {"ok": True}
 
@@ -332,7 +353,7 @@ async def delete_feature(feature_id: str, request: Request):
 @router.post("/{feature_id}/verify")
 async def verify_feature(feature_id: str, request: Request):
     user = await get_current_user(request)
-    existing = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")
     now = now_iso()
@@ -341,5 +362,5 @@ async def verify_feature(feature_id: str, request: Request):
         {"$set": {"last_verified_at": now, "last_verified_by": user.email}},
     )
     await log_activity(user, "verified", feature_id, existing["name"])
-    doc = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    doc = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     return doc
