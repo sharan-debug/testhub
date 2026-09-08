@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Bot, Send, Sparkles, User, X } from "lucide-react";
+import { Bot, Send, Sparkles, User, X, ThumbsDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { API } from "../lib/api";
 
@@ -45,6 +45,7 @@ export default function ChatAgent({ open, onOpenChange }) {
   const [input, setInput] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const [feedback, setFeedback] = useState({});
   const scrollRef = useRef(null);
 
   useEffect(() => {
@@ -116,6 +117,29 @@ export default function ChatAgent({ open, onOpenChange }) {
     }
   };
 
+  const openFeedback = (idx) => setFeedback((f) => ({ ...f, [idx]: { open: true, text: "", submitted: false } }));
+  const closeFeedback = (idx) => setFeedback((f) => ({ ...f, [idx]: { ...f[idx], open: false } }));
+
+  const submitFeedback = async (idx) => {
+    const entry = feedback[idx];
+    if (!entry?.text?.trim()) return;
+    const msg = messages[idx];
+    try {
+      await fetch(`${API}/ai/feedback`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: sessionId,
+          ai_message: msg.content.slice(0, 2000),
+          feedback: entry.text.trim(),
+          feature_ids: (msg.sources || []).map((s) => s.id),
+        }),
+      });
+      setFeedback((f) => ({ ...f, [idx]: { open: false, text: "", submitted: true } }));
+    } catch (_e) {}
+  };
+
   if (!open) return null;
 
   return (
@@ -178,20 +202,81 @@ export default function ChatAgent({ open, onOpenChange }) {
               >
                 {m.content ? renderContent(m.content) : <span className="text-zinc-400">…</span>}
               </div>
-              {m.role === "assistant" && (m.sources || []).length > 0 && (
-                <div className="flex flex-wrap gap-1.5 pl-1" data-testid="chat-sources">
-                  <span className="text-[10px] font-mono text-zinc-400 self-center">sources:</span>
-                  {m.sources.map((s) => (
-                    <Link
-                      key={s.id}
-                      to={`/features/${s.id}`}
-                      onClick={() => onOpenChange(false)}
-                      className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
-                      data-testid={`chat-source-${s.id}`}
+
+              {m.role === "assistant" && m.content && !streaming && (
+                <div className="pl-1 flex flex-col gap-1.5">
+                  {(m.sources || []).length > 0 && (
+                    <div className="flex flex-wrap gap-1.5" data-testid="chat-sources">
+                      <span className="text-[10px] font-mono text-zinc-400 self-center">sources:</span>
+                      {m.sources.map((s) => (
+                        <Link
+                          key={s.id}
+                          to={`/features/${s.id}`}
+                          onClick={() => onOpenChange(false)}
+                          className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 transition-colors"
+                          data-testid={`chat-source-${s.id}`}
+                        >
+                          {s.name}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {feedback[i]?.submitted ? (
+                    <p className="text-[10px] font-mono text-zinc-400">Thanks for the feedback.</p>
+                  ) : feedback[i]?.open ? (
+                    <div className="bg-amber-50 border border-amber-200 rounded-sm p-2.5 flex flex-col gap-2">
+                      <p className="text-[10px] font-mono text-amber-700 uppercase tracking-wide">What's incorrect?</p>
+                      <textarea
+                        value={feedback[i].text}
+                        onChange={(e) => setFeedback((f) => ({ ...f, [i]: { ...f[i], text: e.target.value } }))}
+                        placeholder="Describe what's wrong or what should be corrected…"
+                        rows={2}
+                        className="w-full px-2 py-1.5 text-xs border border-amber-300 rounded-sm bg-white resize-none focus:outline-none focus:ring-1 focus:ring-amber-400"
+                      />
+                      {(m.sources || []).length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 items-center">
+                          <span className="text-[10px] font-mono text-zinc-500">Fix it:</span>
+                          {m.sources.map((s) => (
+                            <Link
+                              key={s.id}
+                              to={`/features/${s.id}/edit`}
+                              onClick={() => onOpenChange(false)}
+                              className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-white text-blue-700 border border-blue-200 hover:bg-blue-50 transition-colors"
+                            >
+                              Edit {s.name} →
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => submitFeedback(i)}
+                          disabled={!feedback[i]?.text?.trim()}
+                          className="h-7 px-3 text-[11px] bg-amber-600 hover:bg-amber-700 text-white rounded-sm disabled:opacity-40 transition-colors"
+                        >
+                          Submit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => closeFeedback(i)}
+                          className="h-7 px-3 text-[11px] border border-zinc-200 rounded-sm hover:bg-zinc-50 text-zinc-600"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => openFeedback(i)}
+                      className="self-start flex items-center gap-1 text-[10px] font-mono text-zinc-400 hover:text-amber-600 transition-colors"
+                      title="Flag this response as incorrect"
                     >
-                      {s.name}
-                    </Link>
-                  ))}
+                      <ThumbsDown className="w-3 h-3" /> Flag incorrect
+                    </button>
+                  )}
                 </div>
               )}
             </div>

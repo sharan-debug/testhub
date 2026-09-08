@@ -2,11 +2,12 @@ import json
 import uuid
 import logging
 import anthropic
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from typing import List, Dict, Any
 from database import db, ANTHROPIC_API_KEY
-from models import ChatMessageIn, now_iso
+from models import ChatMessageIn, AIFeedbackIn, now_iso
 from dependencies import get_current_user
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,19 @@ async def chat(payload: ChatMessageIn, request: Request):
     )
 
     session_id = payload.session_id or f"chat_{uuid.uuid4().hex[:8]}"
+
+    # Tie chat message lifetime to the user's auth session so MongoDB auto-deletes them on expiry.
+    token = request.cookies.get("session_token")
+    session_doc = await db.user_sessions.find_one({"session_token": token}, {"_id": 0, "expires_at": 1})
+    if session_doc:
+        chat_expires_at = session_doc["expires_at"]
+        if isinstance(chat_expires_at, str):
+            chat_expires_at = datetime.fromisoformat(chat_expires_at)
+        if chat_expires_at.tzinfo is None:
+            chat_expires_at = chat_expires_at.replace(tzinfo=timezone.utc)
+    else:
+        chat_expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+
     history_docs = await db.chat_messages.find(
         {"session_id": session_id}, {"_id": 0}
     ).sort("timestamp", 1).to_list(50)
@@ -84,6 +98,7 @@ async def chat(payload: ChatMessageIn, request: Request):
         "role": "user",
         "content": payload.message,
         "timestamp": now_iso(),
+        "expires_at": chat_expires_at,
     })
 
     async def event_stream():
@@ -119,6 +134,7 @@ async def chat(payload: ChatMessageIn, request: Request):
             "content": response_text,
             "sources": sources,
             "timestamp": now_iso(),
+            "expires_at": chat_expires_at,
         })
         yield f"data: {json.dumps({'done': True, 'session_id': session_id, 'sources': sources})}\n\n"
 
@@ -134,3 +150,20 @@ async def chat_history(session_id: str, request: Request):
     await get_current_user(request)
     docs = await db.chat_messages.find({"session_id": session_id}, {"_id": 0}).sort("timestamp", 1).to_list(1000)
     return docs
+
+
+@router.post("/ai/feedback")
+async def submit_feedback(payload: AIFeedbackIn, request: Request):
+    user = await get_current_user(request)
+    if not payload.feedback.strip():
+        raise HTTPException(status_code=400, detail="Feedback cannot be empty")
+    await db.ai_feedback.insert_one({
+        "id": f"fb_{uuid.uuid4().hex[:12]}",
+        "session_id": payload.session_id,
+        "ai_message": payload.ai_message[:2000],
+        "feedback": payload.feedback.strip()[:1000],
+        "feature_ids": payload.feature_ids,
+        "user_email": user.email,
+        "timestamp": now_iso(),
+    })
+    return {"status": "ok"}

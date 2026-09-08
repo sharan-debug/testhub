@@ -41,3 +41,7 @@ async def ensure_indexes():
 
     await db.chat_messages.create_index("session_id")
     await db.chat_messages.create_index([("timestamp", 1)])
+    await db.chat_messages.create_index("expires_at", expireAfterSeconds=0)
+
+    await db.ai_feedback.create_index([("timestamp", -1)])
+    await db.ai_feedback.create_index("session_id")

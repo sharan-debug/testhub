@@ -132,3 +132,10 @@ class CoreFeatureUpdate(BaseModel):
 class ChatMessageIn(BaseModel):
     message: str
     session_id: Optional[str] = None
+
+
+class AIFeedbackIn(BaseModel):
+    session_id: Optional[str] = None
+    ai_message: str
+    feedback: str
+    feature_ids: List[str] = Field(default_factory=list)
