@@ -1,6 +1,6 @@
 from pathlib import Path
 from dotenv import load_dotenv
-from motor.motor_asyncio import AsyncIOMotorClient
+from motor.motor_asyncio import AsyncIOMotorClient, AsyncIOMotorGridFSBucket
 import os
 
 ROOT_DIR = Path(__file__).parent
@@ -12,6 +12,10 @@ SECURE_COOKIES = os.environ.get('SECURE_COOKIES', 'false').lower() == 'true'
 
 _mongo_client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = _mongo_client[os.environ['DB_NAME']]
+
+
+def get_gridfs() -> AsyncIOMotorGridFSBucket:
+    return AsyncIOMotorGridFSBucket(db, bucket_name="attachments")
 
 
 def shutdown_db():
