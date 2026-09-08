@@ -45,7 +45,6 @@ Authoritative reference for what must be built now versus what belongs to later 
 | Test Data (free text) | ✓ | | |
 | Test Steps (free text) | ✓ | | |
 | Mocking Steps (free text) | ✓ | | |
-| Notes (free text catch-all) | ✓ | | Separate field from description |
 | APIs as cURL + description | ✓ | | |
 | File attachments (API collection files) | ✓ | | Postman/cURL JSON; stored in GridFS |
 | API execution | ✗ | — | Never executes cURL |
