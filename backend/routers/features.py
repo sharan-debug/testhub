@@ -2,9 +2,11 @@ import io
 import json
 import re
 import pandas as pd
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
+from fastapi.responses import StreamingResponse
 from typing import Optional, Dict, Any
-from database import db
+from database import db, get_gridfs
 from models import Feature, FeatureCreate, FeatureUpdate, now_iso
 from dependencies import get_current_user, require_role, log_activity
 
@@ -262,6 +264,100 @@ async def get_feature_history(feature_id: str, request: Request, limit: int = 50
         {"feature_id": feature_id}, {"_id": 0}
     ).sort("timestamp", -1).to_list(limit)
     return docs
+
+
+@router.post("/{feature_id}/attachments")
+async def upload_attachment(feature_id: str, request: Request, file: UploadFile = File(...)):
+    user = await require_role("editor")(request)
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Feature not found")
+
+    filename = file.filename or ""
+    if not filename.lower().endswith(".json"):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "INVALID_FILE_TYPE", "message": "Only .json files are allowed"}},
+        )
+
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+
+    try:
+        json.loads(contents)
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "INVALID_JSON", "message": "File is not valid JSON"}},
+        )
+
+    bucket = get_gridfs()
+    grid_id = await bucket.upload_from_stream(filename, contents)
+
+    attachment = {
+        "file_id": str(grid_id),
+        "filename": filename,
+        "size": len(contents),
+        "uploaded_by": user.email,
+        "uploaded_at": now_iso(),
+    }
+    await db.features.update_one({"id": feature_id}, {"$push": {"attachments": attachment}})
+    await log_activity(user, "attachment_added", feature_id, existing["name"])
+    return attachment
+
+
+@router.get("/{feature_id}/attachments/{file_id}")
+async def download_attachment(feature_id: str, file_id: str, request: Request):
+    await get_current_user(request)
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Feature not found")
+
+    att = next((a for a in (existing.get("attachments") or []) if a["file_id"] == file_id), None)
+    if not att:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    try:
+        bucket = get_gridfs()
+        stream = await bucket.open_download_stream(ObjectId(file_id))
+    except Exception:
+        raise HTTPException(status_code=404, detail="File not found in storage")
+
+    async def generate():
+        while True:
+            chunk = await stream.readchunk()
+            if not chunk:
+                break
+            yield chunk
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{att["filename"]}"'},
+    )
+
+
+@router.delete("/{feature_id}/attachments/{file_id}")
+async def delete_attachment(feature_id: str, file_id: str, request: Request):
+    user = await require_role("editor")(request)
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Feature not found")
+
+    att = next((a for a in (existing.get("attachments") or []) if a["file_id"] == file_id), None)
+    if not att:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    try:
+        bucket = get_gridfs()
+        await bucket.delete(ObjectId(file_id))
+    except Exception:
+        pass  # remove metadata even if GridFS chunk is missing
+
+    await db.features.update_one({"id": feature_id}, {"$pull": {"attachments": {"file_id": file_id}}})
+    await log_activity(user, "attachment_deleted", feature_id, existing["name"])
+    return {"ok": True}
 
 
 @router.get("/{feature_id}")

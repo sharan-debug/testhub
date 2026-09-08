@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck, FileJson, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -19,6 +19,8 @@ const ACTION_STYLE = {
   verified: "bg-cyan-100 text-cyan-700",
   imported: "bg-purple-100 text-purple-700",
   deleted: "bg-red-100 text-red-700",
+  attachment_added: "bg-orange-100 text-orange-700",
+  attachment_deleted: "bg-red-50 text-red-500",
 };
 
 function ActionBadge({ action }) {
@@ -46,6 +48,7 @@ export default function FeatureDetail() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [coreFeaturesMap, setCoreFeaturesMap] = useState({});
   const [history, setHistory] = useState([]);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
 
   const load = async () => {
     try {
@@ -86,6 +89,45 @@ export default function FeatureDetail() {
       toast.success("Marked as verified");
       api.get(`/features/${id}/history`).then((h) => setHistory(h.data)).catch(() => {});
     } catch (e) { toast.error("Verify failed"); }
+  };
+
+  const handleAttachmentUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setUploadingAttachment(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      await api.post(`/features/${id}/attachments`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success("File attached");
+      await load();
+    } catch (_e) {
+      toast.error(_e?.response?.data?.detail?.message || _e?.response?.data?.detail || "Upload failed");
+    }
+    setUploadingAttachment(false);
+  };
+
+  const handleDownload = async (att) => {
+    try {
+      const r = await api.get(`/features/${id}/attachments/${att.file_id}`, { responseType: "blob" });
+      const url = URL.createObjectURL(r.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = att.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (_e) { toast.error("Download failed"); }
+  };
+
+  const handleDeleteAttachment = async (fileId) => {
+    try {
+      await api.delete(`/features/${id}/attachments/${fileId}`);
+      toast.success("Attachment removed");
+      await load();
+    } catch (_e) { toast.error("Remove failed"); }
   };
 
   if (!feature) return <div className="p-8 text-sm text-zinc-500">Loading…</div>;
@@ -243,6 +285,51 @@ export default function FeatureDetail() {
                 <span key={c} className="text-xs font-mono bg-zinc-50 border border-zinc-200 rounded-sm px-2 py-1">{c}</span>
               ))}
             </div>
+          </Section>
+        )}
+
+        {((feature.attachments || []).length > 0 || canEdit) && (
+          <Section title="Collection Files" testid="section-attachments">
+            <div className="divide-y divide-zinc-100">
+              {(feature.attachments || []).map((att) => (
+                <div key={att.file_id} className="py-2.5 first:pt-0 last:pb-0 flex items-center gap-3" data-testid={`attachment-${att.file_id}`}>
+                  <FileJson className="w-4 h-4 text-zinc-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-mono truncate">{att.filename}</p>
+                    <p className="text-[10px] text-zinc-400 mt-0.5">
+                      {(att.size / 1024).toFixed(1)} KB · {att.uploaded_by} · {new Date(att.uploaded_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => handleDownload(att)} className="text-xs font-mono text-blue-600 hover:text-blue-800 shrink-0">
+                    download
+                  </button>
+                  {canEdit && (
+                    <button type="button" onClick={() => handleDeleteAttachment(att.file_id)} className="text-xs font-mono text-red-500 hover:text-red-700 shrink-0">
+                      remove
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {canEdit && (
+              <div className="mt-3 pt-3 border-t border-zinc-100">
+                <label
+                  htmlFor="attachment-upload"
+                  className={`inline-flex items-center gap-1.5 h-8 px-3 text-xs border border-dashed border-zinc-300 rounded-sm cursor-pointer transition-colors ${uploadingAttachment ? "opacity-50 cursor-not-allowed" : "hover:border-zinc-500"}`}
+                >
+                  <Upload className="w-3 h-3" />
+                  {uploadingAttachment ? "Uploading…" : "Attach .json file"}
+                </label>
+                <input
+                  id="attachment-upload"
+                  type="file"
+                  accept=".json"
+                  onChange={handleAttachmentUpload}
+                  disabled={uploadingAttachment}
+                  className="hidden"
+                />
+              </div>
+            )}
           </Section>
         )}
 

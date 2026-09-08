@@ -18,6 +18,14 @@ class KeyValueItem(BaseModel):
     description: str = ""
 
 
+class Attachment(BaseModel):
+    file_id: str
+    filename: str
+    size: int
+    uploaded_by: str
+    uploaded_at: str
+
+
 class Feature(BaseModel):
     id: str = Field(default_factory=lambda: f"feat_{uuid.uuid4().hex[:12]}")
     name: str
@@ -41,6 +49,7 @@ class Feature(BaseModel):
     updated_at: str = Field(default_factory=now_iso)
     last_verified_at: Optional[str] = None
     last_verified_by: Optional[str] = None
+    attachments: List[Attachment] = Field(default_factory=list)
     is_deleted: bool = False
     deleted_at: Optional[str] = None
 
