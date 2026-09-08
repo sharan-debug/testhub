@@ -32,6 +32,7 @@ export default function FeatureEdit() {
   const [coreFeatures, setCoreFeatures] = useState([]);
   const [cfError, setCfError] = useState("");
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
+  const [pendingAttachments, setPendingAttachments] = useState([]);
 
   useEffect(() => {
     api.get("/core-features").then((r) => setCoreFeatures(r.data)).catch(() => {});
@@ -86,6 +87,15 @@ export default function FeatureEdit() {
       } else {
         const r = await api.post("/features", payload);
         saved = r.data;
+        for (const file of pendingAttachments) {
+          try {
+            const fd = new FormData();
+            fd.append("file", file);
+            await api.post(`/features/${saved.id}/attachments`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+          } catch (_e) {
+            toast.error(`Failed to attach ${file.name}`);
+          }
+        }
       }
       toast.success(isEdit ? "Saved" : "Created");
       navigate(`/features/${saved.id}`);
@@ -132,6 +142,21 @@ export default function FeatureEdit() {
       update({ attachments: (f.attachments || []).filter((a) => a.file_id !== fileId) });
       toast.success("Attachment removed");
     } catch (_e) { toast.error("Remove failed"); }
+  };
+
+  const handlePendingFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    if (!file.name.toLowerCase().endsWith(".json")) {
+      toast.error("Only .json files are allowed");
+      return;
+    }
+    if (pendingAttachments.some((p) => p.name === file.name)) {
+      toast.error(`${file.name} already queued`);
+      return;
+    }
+    setPendingAttachments((prev) => [...prev, file]);
   };
 
   const inputCls = "w-full h-9 px-3 text-sm border border-zinc-200 rounded-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -355,10 +380,44 @@ export default function FeatureEdit() {
             </div>
           </Section>
         ) : (
-          <div className="bg-zinc-50 border border-zinc-200 rounded-sm p-4 flex items-center gap-2 text-xs text-zinc-500 font-mono">
-            <FileJson className="w-3.5 h-3.5 shrink-0" />
-            Save the feature first to attach collection files (.json)
-          </div>
+          <Section title="Collection Files" testid="section-attachments">
+            {pendingAttachments.length > 0 && (
+              <div className="divide-y divide-zinc-100 mb-3">
+                {pendingAttachments.map((file, i) => (
+                  <div key={file.name} className="py-2.5 first:pt-0 last:pb-0 flex items-center gap-3">
+                    <FileJson className="w-4 h-4 text-zinc-400 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-mono truncate">{file.name}</p>
+                      <p className="text-[10px] text-zinc-400 mt-0.5">{(file.size / 1024).toFixed(1)} KB · will upload on save</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setPendingAttachments((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="text-xs font-mono text-red-500 hover:text-red-700 shrink-0"
+                    >
+                      remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div>
+              <label
+                htmlFor="attachment-upload-new"
+                className="inline-flex items-center gap-1.5 h-8 px-3 text-xs border border-dashed border-zinc-300 rounded-sm cursor-pointer hover:border-zinc-500 transition-colors"
+              >
+                <Upload className="w-3 h-3" />
+                Attach .json file
+              </label>
+              <input
+                id="attachment-upload-new"
+                type="file"
+                accept=".json"
+                onChange={handlePendingFileSelect}
+                className="hidden"
+              />
+            </div>
+          </Section>
         )}
       </div>
 
