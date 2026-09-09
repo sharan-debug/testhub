@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck, FileJson, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
+import QAPanel from "../components/QAPanel";
 
 const FIELD_LABELS = {
   name: "Name", description: "Description", jira_ticket: "Jira",
@@ -332,6 +333,8 @@ export default function FeatureDetail() {
             )}
           </Section>
         )}
+
+        <QAPanel feature={feature} canEdit={canEdit} />
 
         {history.length > 0 && (
           <Section title="History" testid="section-history">
