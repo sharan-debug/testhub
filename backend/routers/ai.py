@@ -106,7 +106,7 @@ async def chat(payload: ChatMessageIn, request: Request):
         full = []
         try:
             async with ac.messages.stream(
-                model="claude-haiku-4-5-20251001",
+                model="claude-haiku-4-5",
                 max_tokens=2048,
                 system=system_message,
                 messages=messages,
