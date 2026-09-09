@@ -19,6 +19,9 @@ services:
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
       SECURE_COOKIES: ${SECURE_COOKIES:-false}
+      QA_UTILITY_URL: ${QA_UTILITY_URL:-}
+      QA_UTILITY_USERNAME: ${QA_UTILITY_USERNAME:-}
+      QA_UTILITY_PASSWORD: ${QA_UTILITY_PASSWORD:-}
     depends_on:
       mongo:
         condition: service_healthy

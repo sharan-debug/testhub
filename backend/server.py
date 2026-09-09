@@ -5,7 +5,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 import database  # loads .env and creates the DB connection before any router imports
 from database import CORS_ORIGINS, shutdown_db, ensure_indexes
-from routers import auth, core_features, features, activity, ai, users
+from routers import auth, core_features, features, activity, ai, users, qa
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ app.include_router(features.router)
 app.include_router(activity.router)
 app.include_router(ai.router)
 app.include_router(users.router)
+app.include_router(qa.router)
 
 
 @app.get("/api/")
