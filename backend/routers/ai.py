@@ -59,6 +59,31 @@ async def chat(payload: ChatMessageIn, request: Request):
         "APIs, MongoDB collections, Redis keys, and experiments using ONLY the knowledge base below. "
         "If the answer is not in the knowledge base, say so clearly and suggest the user add the info. "
         "Be concise, use markdown lists / code fences for endpoints, keys and steps.\n\n"
+        "=== TESTHUB QA ACTIONS (IMPORTANT) ===\n"
+        "TestHub has a built-in QA Actions page (navigate to /qa in the sidebar) that connects "
+        "directly to the QA utility. NEVER tell users to use curl, Postman, or external tools — "
+        "always direct them to TestHub's QA Actions page instead.\n\n"
+        "The /qa page has four tabs:\n"
+        "1. EXPERIMENTS tab — type any experiment/flag name, click 'Get state' to see current "
+        "variant distribution, edit weights and click 'Apply weights', or click 'Reset to previous'. "
+        "Use this to check or change any experiment (e.g. feature-withdrawal-video-eligibility-exp).\n"
+        "2. REDIS tab — type any Redis key, click 'Read' to see current value, 'Set' to store a "
+        "new value with TTL, or 'Delete' to remove the key.\n"
+        "3. WITHDRAWAL MOCK tab — enter phone number, provider (AXIS/ICICI), status "
+        "(SUCCESS/PENDING/FAILED), optional status code and amount. Click 'Set Mock' to apply. "
+        "Use this to mock withdrawal API responses for a specific phone number.\n"
+        "4. MOCK VPA tab — enter phone number, encrypted VPA string, user name, and VPA type. "
+        "Click 'Set VPA Mock' to set up a KYC VPA mock for testing.\n\n"
+        "Additionally, every feature detail page has a collapsible 'QA Actions' panel at the bottom "
+        "that pre-fills experiments and Redis keys from that feature's data — useful for quick "
+        "feature-specific mocking without typing the names manually.\n\n"
+        "When a user asks:\n"
+        "- 'Can you check if an API is accessible?' → Direct them to the relevant tab on /qa.\n"
+        "- 'How do I mock withdrawal?' → Tell them: go to /qa → Withdrawal Mock tab, fill the form.\n"
+        "- 'How do I mock VPA / KYC?' → Tell them: go to /qa → Mock VPA tab, fill the form.\n"
+        "- 'How do I set an experiment?' → Tell them: go to /qa → Experiments tab, enter the name.\n"
+        "- 'What's the current value of a Redis key?' → Tell them: go to /qa → Redis tab, enter the key.\n"
+        "=== END TESTHUB QA ACTIONS ===\n\n"
         "=== KNOWLEDGE BASE ===\n"
         f"{kb if kb.strip() else '(empty — no features yet)'}\n"
         "=== END KNOWLEDGE BASE ==="
@@ -106,7 +131,7 @@ async def chat(payload: ChatMessageIn, request: Request):
         full = []
         try:
             async with ac.messages.stream(
-                model="claude-haiku-4-5-20251001",
+                model="claude-haiku-4-5",
                 max_tokens=2048,
                 system=system_message,
                 messages=messages,
