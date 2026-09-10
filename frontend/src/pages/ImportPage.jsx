@@ -6,14 +6,14 @@ import { api } from "../lib/api";
 
 function StatusChip({ row }) {
   if (row.is_duplicate) {
-    return <span className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-amber-100 text-amber-700 border border-amber-200">duplicate</span>;
+    return <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">duplicate</span>;
   }
-  return <span className="text-[10px] font-mono px-2 py-0.5 rounded-sm bg-emerald-100 text-emerald-700 border border-emerald-200">new</span>;
+  return <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-200">new</span>;
 }
 
 export default function ImportPage() {
   const [file, setFile] = useState(null);
-  const [step, setStep] = useState("select"); // select | preview | result
+  const [step, setStep] = useState("select");
   const [previewing, setPreviewing] = useState(false);
   const [preview, setPreview] = useState(null);
   const [skipDuplicates, setSkipDuplicates] = useState(true);
@@ -68,24 +68,23 @@ export default function ImportPage() {
   if (step === "result") {
     return (
       <div className="p-6 md:p-8 max-w-3xl">
-        <p className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-2">Bulk</p>
-        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-6">Import complete</h1>
-
-        <div className="bg-white border border-zinc-200 rounded-sm p-6" data-testid="import-result">
+        <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Bulk</p>
+        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-6 text-zinc-900">Import complete</h1>
+        <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-6" data-testid="import-result">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <p className="font-medium text-sm">{result.imported} feature{result.imported !== 1 ? "s" : ""} imported</p>
+            <p className="font-medium text-sm text-zinc-800">{result.imported} feature{result.imported !== 1 ? "s" : ""} imported</p>
           </div>
           {result.skipped > 0 && (
-            <p className="text-xs text-zinc-500 ml-6 mb-1">{result.skipped} duplicate{result.skipped !== 1 ? "s" : ""} skipped</p>
+            <p className="text-xs text-zinc-400 ml-6 mb-1">{result.skipped} duplicate{result.skipped !== 1 ? "s" : ""} skipped</p>
           )}
           {result.errors?.length > 0 && (
             <div className="mt-3">
               <div className="flex items-center gap-2 mb-2">
                 <AlertCircle className="w-4 h-4 text-amber-600" />
-                <p className="font-medium text-sm">{result.errors.length} row error{result.errors.length !== 1 ? "s" : ""}</p>
+                <p className="font-medium text-sm text-zinc-800">{result.errors.length} row error{result.errors.length !== 1 ? "s" : ""}</p>
               </div>
-              <pre className="text-xs bg-zinc-50 border border-zinc-100 rounded-sm p-3 font-mono max-h-48 overflow-auto">{result.errors.join("\n")}</pre>
+              <pre className="text-xs bg-indigo-50/60 border border-indigo-100 rounded-lg p-3 font-mono max-h-48 overflow-auto">{result.errors.join("\n")}</pre>
             </div>
           )}
           <div className="flex gap-2 mt-5">
@@ -93,9 +92,9 @@ export default function ImportPage() {
               data-testid="import-view-features"
               type="button"
               onClick={() => navigate("/features")}
-              className="h-9 px-4 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm"
+              className="h-9 px-4 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-sm shadow-indigo-200"
             >View features</button>
-            <button type="button" onClick={reset} className="h-9 px-4 text-sm border border-zinc-200 rounded-sm hover:bg-zinc-50">Import another</button>
+            <button type="button" onClick={reset} className="h-9 px-4 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600">Import another</button>
           </div>
         </div>
       </div>
@@ -107,12 +106,12 @@ export default function ImportPage() {
     const confirmCount = skipDuplicates ? newCount : preview.total;
     return (
       <div className="p-6 md:p-8 max-w-4xl">
-        <button type="button" onClick={() => setStep("select")} className="text-xs font-mono text-zinc-500 hover:text-black flex items-center gap-1 mb-6">
+        <button type="button" onClick={() => setStep("select")} className="text-xs font-mono text-indigo-400 hover:text-indigo-600 flex items-center gap-1 mb-6">
           <ArrowLeft className="w-3 h-3" /> back
         </button>
-        <p className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-2">Bulk</p>
-        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2">Preview</h1>
-        <p className="text-sm text-zinc-500 mb-6">{file.name}</p>
+        <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Bulk</p>
+        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2 text-zinc-900">Preview</h1>
+        <p className="text-sm text-zinc-400 mb-6">{file.name}</p>
 
         <div className="flex gap-4 mb-5 flex-wrap">
           {[
@@ -120,26 +119,26 @@ export default function ImportPage() {
             { label: "new", value: newCount, cls: "text-emerald-700" },
             { label: "duplicates", value: preview.duplicates, cls: "text-amber-700" },
           ].map((s) => (
-            <div key={s.label} className="bg-white border border-zinc-200 rounded-sm px-4 py-2 min-w-[90px]">
+            <div key={s.label} className="bg-white border border-indigo-100 rounded-xl shadow-sm px-4 py-2 min-w-[90px]">
               <div className={`text-xl font-heading font-black ${s.cls}`}>{s.value}</div>
-              <div className="text-[10px] font-mono uppercase text-zinc-500">{s.label}</div>
+              <div className="text-[10px] font-mono uppercase text-indigo-400">{s.label}</div>
             </div>
           ))}
         </div>
 
-        <div className="bg-white border border-zinc-200 rounded-sm mb-5 overflow-hidden">
-          <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-mono uppercase tracking-widest text-zinc-500 border-b border-zinc-200">
+        <div className="bg-white border border-indigo-100 rounded-xl shadow-sm mb-5 overflow-hidden">
+          <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-mono uppercase tracking-widest text-indigo-400 bg-indigo-50/50 border-b border-indigo-100">
             <div className="col-span-1">Row</div>
             <div className="col-span-6">Name</div>
             <div className="col-span-3">Fields detected</div>
             <div className="col-span-2">Status</div>
           </div>
-          <div className="divide-y divide-zinc-100 max-h-96 overflow-y-auto">
+          <div className="divide-y divide-indigo-50 max-h-96 overflow-y-auto">
             {preview.rows.map((row) => (
-              <div key={row.row} className="grid grid-cols-12 px-4 py-2.5 items-center" data-testid={`preview-row-${row.row}`}>
+              <div key={row.row} className="grid grid-cols-12 px-4 py-2.5 items-center hover:bg-indigo-50/30 transition-colors" data-testid={`preview-row-${row.row}`}>
                 <div className="col-span-1 text-[11px] font-mono text-zinc-400">{row.row}</div>
-                <div className="col-span-6 text-sm font-medium truncate pr-2">{row.name}</div>
-                <div className="col-span-3 text-[11px] font-mono text-zinc-500">{row.fields_detected.length} field{row.fields_detected.length !== 1 ? "s" : ""}</div>
+                <div className="col-span-6 text-sm font-medium truncate pr-2 text-zinc-700">{row.name}</div>
+                <div className="col-span-3 text-[11px] font-mono text-zinc-400">{row.fields_detected.length} field{row.fields_detected.length !== 1 ? "s" : ""}</div>
                 <div className="col-span-2"><StatusChip row={row} /></div>
               </div>
             ))}
@@ -147,7 +146,7 @@ export default function ImportPage() {
         </div>
 
         {preview.duplicates > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-sm p-4 mb-5 flex items-start gap-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-5 flex items-start gap-3">
             <CircleDot className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
             <div>
               <p className="text-sm font-medium text-amber-800">{preview.duplicates} duplicate{preview.duplicates !== 1 ? "s" : ""} detected</p>
@@ -171,11 +170,11 @@ export default function ImportPage() {
             type="button"
             onClick={onImport}
             disabled={importing}
-            className="inline-flex items-center gap-1.5 h-9 px-5 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm disabled:opacity-50 transition-colors"
+            className="inline-flex items-center gap-1.5 h-9 px-5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition-colors shadow-sm shadow-indigo-200"
           >
             <Upload className="w-4 h-4" />{importing ? "Importing…" : `Import ${confirmCount} feature${confirmCount !== 1 ? "s" : ""}`}
           </button>
-          <button type="button" onClick={reset} className="h-9 px-4 text-sm border border-zinc-200 rounded-sm hover:bg-zinc-50">Cancel</button>
+          <button type="button" onClick={reset} className="h-9 px-4 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600">Cancel</button>
         </div>
       </div>
     );
@@ -183,26 +182,26 @@ export default function ImportPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-3xl">
-      <p className="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-2">Bulk</p>
-      <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2">Import features</h1>
-      <p className="text-sm text-zinc-600 mb-6">Upload a CSV or Excel sheet to bulk-load features. You'll see a preview before anything is saved.</p>
+      <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Bulk</p>
+      <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2 text-zinc-900">Import features</h1>
+      <p className="text-sm text-zinc-500 mb-6">Upload a CSV or Excel sheet to bulk-load features. You'll see a preview before anything is saved.</p>
 
-      <div className="bg-white border border-zinc-200 rounded-sm p-6 mb-4">
+      <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-6 mb-4">
         <label
           htmlFor="file-upload"
-          className="block border-2 border-dashed border-zinc-300 rounded-sm p-10 text-center cursor-pointer hover:border-zinc-500 transition-colors"
+          className="block border-2 border-dashed border-indigo-200 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors"
           data-testid="upload-dropzone"
         >
-          <FileSpreadsheet className="w-8 h-8 text-zinc-400 mx-auto mb-3" />
+          <FileSpreadsheet className="w-8 h-8 text-indigo-300 mx-auto mb-3" />
           {file ? (
             <div>
-              <p className="text-sm font-medium">{file.name}</p>
-              <p className="text-xs text-zinc-500 mt-1">{(file.size / 1024).toFixed(1)} KB — click to change</p>
+              <p className="text-sm font-medium text-zinc-700">{file.name}</p>
+              <p className="text-xs text-zinc-400 mt-1">{(file.size / 1024).toFixed(1)} KB — click to change</p>
             </div>
           ) : (
             <div>
-              <p className="text-sm font-medium">Drop a .csv, .xlsx or .xls file here, or click to browse</p>
-              <p className="text-xs text-zinc-500 mt-1">Max 10 MB</p>
+              <p className="text-sm font-medium text-zinc-600">Drop a .csv, .xlsx or .xls file here, or click to browse</p>
+              <p className="text-xs text-zinc-400 mt-1">Max 10 MB</p>
             </div>
           )}
           <input
@@ -216,29 +215,29 @@ export default function ImportPage() {
         </label>
 
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={() => navigate("/features")} className="h-9 px-4 text-sm border border-zinc-200 rounded-sm hover:bg-zinc-50">Cancel</button>
+          <button type="button" onClick={() => navigate("/features")} className="h-9 px-4 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600">Cancel</button>
           <button
             data-testid="upload-submit-btn"
             type="button"
             onClick={onPreview}
             disabled={!file || previewing}
-            className="inline-flex items-center gap-1.5 h-9 px-4 text-sm bg-black hover:bg-zinc-800 text-white rounded-sm disabled:opacity-40 transition-colors"
+            className="inline-flex items-center gap-1.5 h-9 px-4 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-40 transition-colors shadow-sm shadow-indigo-200"
           >
             <Upload className="w-4 h-4" />{previewing ? "Reading…" : "Preview"}
           </button>
         </div>
       </div>
 
-      <div className="bg-zinc-50 border border-zinc-200 rounded-sm p-5">
+      <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-heading font-black text-sm tracking-tight uppercase text-zinc-500">Expected columns (case-insensitive)</h3>
+          <h3 className="font-heading font-black text-xs tracking-widest uppercase text-indigo-400">Expected columns (case-insensitive)</h3>
           <a
             href="/sample_import.csv"
             download="sample_import.csv"
-            className="text-xs text-zinc-500 hover:text-zinc-900 underline underline-offset-2 font-mono"
+            className="text-xs text-indigo-500 hover:text-indigo-700 underline underline-offset-2 font-mono"
           >Download sample CSV</a>
         </div>
-        <ul className="text-xs text-zinc-600 space-y-1 font-mono">
+        <ul className="text-xs text-zinc-500 space-y-1 font-mono">
           <li>• name <span className="text-zinc-400">(required)</span></li>
           <li>• description, owner, tags <span className="text-zinc-400">(comma-separated)</span></li>
           <li>• test_data, test_steps, mocking_steps <span className="text-zinc-400">(free text)</span></li>
