@@ -1,6 +1,6 @@
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Beaker, LayoutDashboard, Library, Upload, LogOut, Sparkles, Zap, Settings } from "lucide-react";
+import { Beaker, LayoutDashboard, Library, Upload, LogOut, Sparkles, Zap, Settings, FlaskConical } from "lucide-react";
 import ChatAgent from "./ChatAgent";
 import { useState } from "react";
 
@@ -55,6 +55,23 @@ export default function Layout() {
             <Sparkles className="w-4 h-4" />
             Ask the Agent
           </button>
+
+          {user?.role !== "viewer" && (
+            <NavLink
+              to="/qa"
+              data-testid="nav-qa-actions"
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 text-sm rounded-sm transition-colors border-l-2 ${
+                  isActive
+                    ? "bg-zinc-100 text-zinc-900 border-blue-600 font-medium"
+                    : "text-zinc-600 hover:bg-zinc-50 border-transparent"
+                }`
+              }
+            >
+              <FlaskConical className="w-4 h-4" />
+              QA Actions
+            </NavLink>
+          )}
 
           {user?.role === "admin" && (
             <>

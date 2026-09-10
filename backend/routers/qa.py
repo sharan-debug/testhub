@@ -88,7 +88,7 @@ async def get_experiment(name: str, request: Request):
     await get_current_user(request)
     if not _configured():
         raise HTTPException(status_code=503, detail="QA utility not configured")
-    return await _qa("GET", "/v1/api/experiment", params={"name": name})
+    return await _qa("GET", "/v1/api/experiment", params={"experimentName": name})
 
 
 @router.put("/experiment")
@@ -100,7 +100,7 @@ async def set_experiment(payload: ExperimentUpdate, request: Request):
     if total != 100:
         raise HTTPException(status_code=400, detail=f"Variant weights must sum to 100 (got {total})")
     body = {
-        "name": payload.name,
+        "experimentName": payload.name,
         "variants": [{"name": v.name, "weight": v.weight} for v in payload.variants],
     }
     result = await _qa("PUT", "/v1/api/experiment", body=body)
@@ -113,7 +113,7 @@ async def reset_experiment(payload: ExperimentReset, request: Request):
     user = await require_role("editor")(request)
     if not _configured():
         raise HTTPException(status_code=503, detail="QA utility not configured")
-    result = await _qa("POST", "/v1/api/experiment/reset", body={"name": payload.name})
+    result = await _qa("POST", "/v1/api/experiment/reset", params={"experimentName": payload.name})
     logger.info("QA: %s reset experiment '%s'", user.email, payload.name)
     return result
 
@@ -188,6 +188,7 @@ class WithdrawalMock(BaseModel):
     phone_number: str
     provider: str
     status: str
+    status_code: Optional[int] = None
     amount: Optional[float] = None
 
 
@@ -201,11 +202,41 @@ async def set_withdrawal_mock(payload: WithdrawalMock, request: Request):
         "provider": payload.provider.upper(),
         "status": payload.status.upper(),
     }
+    if payload.status_code is not None:
+        body["statusCode"] = payload.status_code
     if payload.amount is not None:
         body["amount"] = payload.amount
     result = await _qa("PUT", "/v1/api/withdrawal-mock", body=body)
     logger.info(
         "QA: %s set withdrawal mock phone=%s provider=%s status=%s",
         user.email, payload.phone_number, payload.provider, payload.status,
+    )
+    return result
+
+
+# ---------- VPA Mock ----------
+
+class VpaMock(BaseModel):
+    phone_number: str
+    encrypted_vpa: str
+    user_name: str
+    vpa_type: str
+
+
+@router.post("/mock/vpa")
+async def set_vpa_mock(payload: VpaMock, request: Request):
+    user = await require_role("editor")(request)
+    if not _configured():
+        raise HTTPException(status_code=503, detail="QA utility not configured")
+    body = {
+        "phoneNumber": payload.phone_number,
+        "encryptedVpa": payload.encrypted_vpa,
+        "userName": payload.user_name,
+        "vpaType": payload.vpa_type,
+    }
+    result = await _qa("POST", "/v1/api/mock-vpa/setup", body=body)
+    logger.info(
+        "QA: %s set VPA mock phone=%s vpaType=%s",
+        user.email, payload.phone_number, payload.vpa_type,
     )
     return result
