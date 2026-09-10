@@ -188,7 +188,7 @@ class WithdrawalMock(BaseModel):
     phone_number: str
     provider: str
     status: str
-    status_code: Optional[int] = None
+    status_code: Optional[str] = None
     amount: Optional[float] = None
 
 

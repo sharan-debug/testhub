@@ -273,7 +273,7 @@ function WithdrawalMockTab() {
         provider: form.provider.trim(),
         status: form.status.trim(),
       };
-      if (form.status_code) payload.status_code = Number(form.status_code);
+      if (form.status_code) payload.status_code = form.status_code.trim();
       if (form.amount) payload.amount = Number(form.amount);
       await api.post("/qa/mock/withdrawal", payload);
       toast.success("Withdrawal mock set");
@@ -309,7 +309,7 @@ function WithdrawalMockTab() {
         </div>
         <div>
           <label htmlFor="wm-status-code" className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block mb-1.5">Status Code <span className="normal-case text-zinc-400">(optional)</span></label>
-          <input id="wm-status-code" type="number" value={form.status_code} onChange={(e) => setForm((f) => ({ ...f, status_code: e.target.value }))} placeholder="e.g. 200" className={inp} />
+          <input id="wm-status-code" type="text" value={form.status_code} onChange={(e) => setForm((f) => ({ ...f, status_code: e.target.value }))} placeholder="e.g. 200" className={inp} />
         </div>
         <div>
           <label htmlFor="wm-amount" className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 block mb-1.5">Amount <span className="normal-case text-zinc-400">(optional)</span></label>
