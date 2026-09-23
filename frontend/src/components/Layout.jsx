@@ -1,3 +1,4 @@
+// biome-ignore assist/source/organizeImports: <explanation>
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Beaker, FlaskConical, LayoutDashboard, Library, LogOut, Settings, Sparkles, Upload, Zap } from "lucide-react";
@@ -270,10 +271,10 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex" style={{ background: "#E7EAF6" }}>
-      {/* Sidebar — sits on top of background */}
+      {/* Sidebar — sticky, always viewport-height so user section stays visible */}
       <aside
-        className="w-60 shrink-0 bg-white border-r border-indigo-100 flex flex-col"
-        style={{ position: "relative", zIndex: 10 }}
+        className="w-60 shrink-0 bg-white border-r border-indigo-100 flex flex-col overflow-y-auto"
+        style={{ position: "sticky", top: 0, height: "100vh", zIndex: 10 }}
       >
         <div className="p-5 border-b border-indigo-100">
           <Link to="/" className="flex items-center gap-2" data-testid="brand-link">
