@@ -1,6 +1,8 @@
 import "./App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { ThemeProvider } from "./contexts/ThemeContext";
+import { ToastProvider } from "./contexts/ToastContext";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Features from "./pages/Features";
@@ -54,14 +56,18 @@ function AppRouter() {
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRouter />
-          <Toaster position="top-right" richColors />
-        </AuthProvider>
-      </BrowserRouter>
-    </div>
+    <ThemeProvider>
+      <ToastProvider>
+        <div className="App">
+          <BrowserRouter>
+            <AuthProvider>
+              <AppRouter />
+              <Toaster position="top-right" richColors />
+            </AuthProvider>
+          </BrowserRouter>
+        </div>
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
 
