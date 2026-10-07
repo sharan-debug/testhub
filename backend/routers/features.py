@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, UploadFile, File, Form
 from fastapi.responses import StreamingResponse
 from typing import Optional, Dict, Any
 from database import db, get_gridfs
-from models import Feature, FeatureCreate, FeatureUpdate, now_iso
+from models import Feature, FeatureCreate, FeatureUpdate, ReviewRejectIn, now_iso
 from dependencies import get_current_user, require_role, log_activity
 
 router = APIRouter(prefix="/api/features")
@@ -373,16 +373,19 @@ async def get_feature(feature_id: str, request: Request):
 async def create_feature(payload: FeatureCreate, request: Request):
     user = await require_role("editor")(request)
     await _validate_core_feature_id(payload.core_feature_id)
+    needs_review = user.role == "editor"
     feature = Feature(
         **payload.model_dump(),
         owner=user.name,
         created_by=user.email,
         updated_by=user.name,
         contributors=[user.email],
+        pending_review=needs_review,
     )
     doc = feature.model_dump()
     await db.features.insert_one(doc)
-    await log_activity(user, "created", feature.id, feature.name)
+    action = "submitted_for_review" if needs_review else "created"
+    await log_activity(user, action, feature.id, feature.name)
     doc.pop("_id", None)
     return doc
 
@@ -414,6 +417,10 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
     contributors.add(user.email)
     updates["contributors"] = list(contributors)
 
+    # Re-queue for review when an editor edits an already-approved feature
+    if user.role == "editor" and not existing.get("pending_review", False):
+        updates["pending_review"] = True
+
     changed_fields = []
     for field in _TRACKED_FIELDS:
         if field not in updates:
@@ -434,7 +441,7 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
 
 @router.delete("/{feature_id}")
 async def delete_feature(feature_id: str, request: Request):
-    user = await require_role("editor")(request)
+    user = await require_role("approver")(request)
     existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")
@@ -443,6 +450,48 @@ async def delete_feature(feature_id: str, request: Request):
         {"$set": {"is_deleted": True, "deleted_at": now_iso()}},
     )
     await log_activity(user, "deleted", feature_id, existing["name"])
+    return {"ok": True}
+
+
+@router.post("/{feature_id}/approve")
+async def approve_feature(feature_id: str, request: Request):
+    user = await require_role("approver")(request)
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    if not existing.get("pending_review", False):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "NOT_PENDING", "message": "Feature is not pending review"}},
+        )
+    await db.features.update_one(
+        {"id": feature_id},
+        {"$set": {"pending_review": False, "updated_at": now_iso(), "updated_by": user.name}},
+    )
+    await log_activity(user, "approved", feature_id, existing["name"])
+    doc = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    return doc
+
+
+@router.post("/{feature_id}/reject")
+async def reject_feature(feature_id: str, payload: ReviewRejectIn, request: Request):
+    user = await require_role("approver")(request)
+    existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Feature not found")
+    if not existing.get("pending_review", False):
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "NOT_PENDING", "message": "Feature is not pending review"}},
+        )
+    await db.features.update_one(
+        {"id": feature_id},
+        {"$set": {"is_deleted": True, "deleted_at": now_iso(), "pending_review": False}},
+    )
+    await log_activity(
+        user, "rejected", feature_id, existing["name"],
+        note=payload.reason if payload.reason else None,
+    )
     return {"ok": True}
 
 

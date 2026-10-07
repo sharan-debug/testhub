@@ -100,13 +100,20 @@ class TestEditorCanMutate:
         assert resp.status_code == 200
         assert resp.json()["name"] == "Updated"
 
-    async def test_editor_can_delete_feature(self, client):
+    async def test_editor_cannot_delete_feature(self, client):
         cf_id = await seed_core_feature()
         await register_and_login(client, "editor@test.com")
         create_resp = await client.post("/api/features", json={"name": "Bye", "core_feature_id": cf_id})
         feature_id = create_resp.json()["id"]
         resp = await client.delete(f"/api/features/{feature_id}")
+        assert resp.status_code == 403
+
+    async def test_editor_create_sets_pending_review(self, client):
+        cf_id = await seed_core_feature()
+        await register_and_login(client, "editor@test.com")
+        resp = await client.post("/api/features", json={"name": "Pending F", "core_feature_id": cf_id})
         assert resp.status_code == 200
+        assert resp.json()["pending_review"] is True
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +162,68 @@ class TestAdminUserManagement:
     async def test_unauthenticated_cannot_access_users(self, client):
         resp = await client.get("/api/users")
         assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Approver actions
+# ---------------------------------------------------------------------------
+class TestApproverActions:
+    async def _setup_approver(self, client):
+        await register_and_login(client, "approver@test.com")
+        await set_role("approver@test.com", "approver")
+        return client
+
+    async def test_approver_can_delete_feature(self, client):
+        cf_id = await seed_core_feature()
+        # Editor creates feature
+        await register_and_login(client, "editor@test.com")
+        create_resp = await client.post("/api/features", json={"name": "ToDelete", "core_feature_id": cf_id})
+        feature_id = create_resp.json()["id"]
+        # Approver deletes it
+        await self._setup_approver(client)
+        resp = await client.delete(f"/api/features/{feature_id}")
+        assert resp.status_code == 200
+
+    async def test_approver_can_approve_feature(self, client):
+        cf_id = await seed_core_feature()
+        await register_and_login(client, "editor@test.com")
+        create_resp = await client.post("/api/features", json={"name": "ToApprove", "core_feature_id": cf_id})
+        feature_id = create_resp.json()["id"]
+        assert create_resp.json()["pending_review"] is True
+        await self._setup_approver(client)
+        resp = await client.post(f"/api/features/{feature_id}/approve")
+        assert resp.status_code == 200
+        assert resp.json()["pending_review"] is False
+
+    async def test_approver_can_reject_feature(self, client):
+        cf_id = await seed_core_feature()
+        await register_and_login(client, "editor@test.com")
+        create_resp = await client.post("/api/features", json={"name": "ToReject", "core_feature_id": cf_id})
+        feature_id = create_resp.json()["id"]
+        await self._setup_approver(client)
+        resp = await client.post(f"/api/features/{feature_id}/reject", json={"reason": "Incomplete data"})
+        assert resp.status_code == 200
+        # Feature should be soft-deleted
+        get_resp = await client.get(f"/api/features/{feature_id}")
+        assert get_resp.status_code == 404
+
+    async def test_editor_cannot_approve_feature(self, client):
+        cf_id = await seed_core_feature()
+        await register_and_login(client, "editor@test.com")
+        create_resp = await client.post("/api/features", json={"name": "CantApprove", "core_feature_id": cf_id})
+        feature_id = create_resp.json()["id"]
+        resp = await client.post(f"/api/features/{feature_id}/approve")
+        assert resp.status_code == 403
+
+    async def test_approve_already_approved_returns_400(self, client):
+        cf_id = await seed_core_feature()
+        await register_and_login(client, "editor@test.com")
+        create_resp = await client.post("/api/features", json={"name": "AlreadyApproved", "core_feature_id": cf_id})
+        feature_id = create_resp.json()["id"]
+        await self._setup_approver(client)
+        await client.post(f"/api/features/{feature_id}/approve")
+        resp = await client.post(f"/api/features/{feature_id}/approve")
+        assert resp.status_code == 400
 
 
 # ---------------------------------------------------------------------------
