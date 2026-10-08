@@ -21,7 +21,7 @@ class TestFeatureHistory:
         assert h.status_code == 200
         events = h.json()
         assert len(events) == 1
-        assert events[0]["action"] == "created"
+        assert events[0]["action"] == "submitted_for_review"
         assert events[0]["feature_id"] == fid
         assert events[0]["user_name"] == "Ed User"
 
@@ -32,7 +32,7 @@ class TestFeatureHistory:
         h = await editor.get(f"/api/features/{fid}/history")
         actions = [e["action"] for e in h.json()]
         assert "updated" in actions
-        assert "created" in actions
+        assert "submitted_for_review" in actions
 
     async def test_verify_logged(self, editor, cf_id):
         r = await editor.post("/api/features", json={"name": "F1", "core_feature_id": cf_id})
@@ -49,7 +49,7 @@ class TestFeatureHistory:
         await editor.post(f"/api/features/{fid}/verify")
         events = (await editor.get(f"/api/features/{fid}/history")).json()
         assert events[0]["action"] == "verified"
-        assert events[-1]["action"] == "created"
+        assert events[-1]["action"] == "submitted_for_review"
 
     async def test_history_scoped_to_feature(self, editor, cf_id):
         r1 = await editor.post("/api/features", json={"name": "F1", "core_feature_id": cf_id})

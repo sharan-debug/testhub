@@ -52,6 +52,7 @@ class Feature(BaseModel):
     attachments: List[Attachment] = Field(default_factory=list)
     is_deleted: bool = False
     deleted_at: Optional[str] = None
+    pending_review: bool = False
 
 
 class FeatureCreate(BaseModel):
@@ -127,6 +128,10 @@ class CoreFeatureCreate(BaseModel):
 class CoreFeatureUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+
+
+class ReviewRejectIn(BaseModel):
+    reason: str = ""
 
 
 class ChatMessageIn(BaseModel):

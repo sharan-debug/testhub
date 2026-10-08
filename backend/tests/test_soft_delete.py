@@ -1,10 +1,11 @@
 import pytest
-from tests.conftest import register_and_login, seed_core_feature
+from tests.conftest import register_and_login, set_role, seed_core_feature
 
 
 @pytest.fixture
 async def editor(client):
-    await register_and_login(client, "sd_editor@test.com", name="SD Editor")
+    await register_and_login(client, "sd_approver@test.com", name="SD Approver")
+    await set_role("sd_approver@test.com", "approver")
     return client
 
 

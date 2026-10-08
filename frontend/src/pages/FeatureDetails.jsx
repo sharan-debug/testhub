@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck, FileJson, Upload } from "lucide-react";
+import { Pencil, Trash2, ArrowLeft, Users, ShieldCheck, FileJson, Upload, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../contexts/AuthContext";
 import QAPanel from "../components/QAPanel";
@@ -15,13 +15,16 @@ const FIELD_LABELS = {
 };
 
 const ACTION_STYLE = {
-  created:            "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400",
-  updated:            "bg-slate-100  dark:bg-zinc-800        text-slate-600   dark:text-zinc-300",
-  verified:           "bg-cyan-100   dark:bg-cyan-950/40     text-cyan-700    dark:text-cyan-400",
-  imported:           "bg-purple-100 dark:bg-purple-950/40   text-purple-700  dark:text-purple-400",
-  deleted:            "bg-red-100    dark:bg-red-950/40      text-red-700     dark:text-red-400",
-  attachment_added:   "bg-orange-100 dark:bg-orange-950/40   text-orange-700  dark:text-orange-400",
-  attachment_deleted: "bg-red-50     dark:bg-red-950/30      text-red-500     dark:text-red-400",
+  created:              "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400",
+  submitted_for_review: "bg-amber-100   dark:bg-amber-950/40   text-amber-700   dark:text-amber-400",
+  approved:             "bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400",
+  rejected:             "bg-red-100     dark:bg-red-950/40     text-red-700     dark:text-red-400",
+  updated:              "bg-slate-100   dark:bg-zinc-800       text-slate-600   dark:text-zinc-300",
+  verified:             "bg-cyan-100    dark:bg-cyan-950/40    text-cyan-700    dark:text-cyan-400",
+  imported:             "bg-purple-100  dark:bg-purple-950/40  text-purple-700  dark:text-purple-400",
+  deleted:              "bg-red-100     dark:bg-red-950/40     text-red-700     dark:text-red-400",
+  attachment_added:     "bg-orange-100  dark:bg-orange-950/40  text-orange-700  dark:text-orange-400",
+  attachment_deleted:   "bg-red-50      dark:bg-red-950/30     text-red-500     dark:text-red-400",
 };
 
 function ActionBadge({ action }) {
@@ -50,8 +53,13 @@ export default function FeatureDetail() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const canEdit = user?.role !== "viewer";
+  const canReview = user?.role === "approver" || user?.role === "admin";
+  const canDelete = canReview;
   const [feature, setFeature] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [reviewing, setReviewing] = useState(false);
   const [coreFeaturesMap, setCoreFeaturesMap] = useState({});
   const [history, setHistory] = useState([]);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
@@ -86,6 +94,27 @@ export default function FeatureDetail() {
       toast.success("Feature deleted");
       navigate("/features");
     } catch (e) { toast.error("Delete failed"); }
+  };
+
+  const handleApprove = async () => {
+    setReviewing(true);
+    try {
+      const r = await api.post(`/features/${id}/approve`);
+      setFeature(r.data);
+      toast.success("Feature approved");
+      api.get(`/features/${id}/history`).then((h) => setHistory(h.data)).catch(() => {});
+    } catch (e) { toast.error(e?.response?.data?.detail?.error?.message || "Approve failed"); }
+    setReviewing(false);
+  };
+
+  const handleRejectSubmit = async () => {
+    setReviewing(true);
+    try {
+      await api.post(`/features/${id}/reject`, { reason: rejectReason });
+      toast.success("Feature rejected and removed");
+      navigate("/features");
+    } catch (e) { toast.error(e?.response?.data?.detail?.error?.message || "Reject failed"); }
+    setReviewing(false);
   };
 
   const handleVerify = async () => {
@@ -166,9 +195,17 @@ export default function FeatureDetail() {
             >
               {feature.name}
             </h1>
+            {feature.pending_review && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                data-testid="pending-review-badge"
+              >
+                <Clock className="w-3 h-3" /> pending review
+              </span>
+            )}
             {feature.status === "archived" && (
               <span
-                className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800"
+                className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
                 data-testid="status-badge"
               >
                 archived
@@ -216,7 +253,30 @@ export default function FeatureDetail() {
         </div>
 
         {/* Action buttons */}
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 flex-wrap">
+          {/* Approve/Reject — only for approvers/admins when feature is pending */}
+          {canReview && feature.pending_review && (
+            <>
+              <button
+                data-testid="approve-feature-btn"
+                type="button"
+                onClick={handleApprove}
+                disabled={reviewing}
+                className="inline-flex items-center gap-1.5 h-9 px-3 text-sm bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+              </button>
+              <button
+                data-testid="reject-feature-btn"
+                type="button"
+                onClick={() => setShowRejectModal(true)}
+                disabled={reviewing}
+                className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-red-200 dark:border-red-800 bg-white dark:bg-zinc-900 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+              >
+                <XCircle className="w-3.5 h-3.5" /> Reject
+              </button>
+            </>
+          )}
           <button
             data-testid="verify-feature-btn"
             type="button"
@@ -226,24 +286,24 @@ export default function FeatureDetail() {
             <ShieldCheck className="w-3.5 h-3.5" /> Verify
           </button>
           {canEdit && (
-            <>
-              <button
-                data-testid="edit-feature-btn"
-                type="button"
-                onClick={() => navigate(`/features/${id}/edit`)}
-                className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5" /> Edit
-              </button>
-              <button
-                data-testid="delete-feature-btn"
-                type="button"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="h-9 px-3 text-sm border border-red-200 dark:border-red-800 bg-white dark:bg-zinc-900 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </>
+            <button
+              data-testid="edit-feature-btn"
+              type="button"
+              onClick={() => navigate(`/features/${id}/edit`)}
+              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg transition-colors"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </button>
+          )}
+          {canDelete && (
+            <button
+              data-testid="delete-feature-btn"
+              type="button"
+              onClick={() => setShowDeleteConfirm(true)}
+              className="h-9 px-3 text-sm border border-red-200 dark:border-red-800 bg-white dark:bg-zinc-900 hover:bg-red-50 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
           )}
         </div>
       </div>
@@ -271,6 +331,43 @@ export default function FeatureDetail() {
                 className="h-9 px-4 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject modal */}
+      {showRejectModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-slate-200 dark:border-zinc-700 shadow-xl p-6 max-w-sm w-full mx-4">
+            <h3 className="font-heading font-black text-lg mb-2 text-slate-900 dark:text-zinc-100">Reject feature?</h3>
+            <p className="text-sm text-slate-500 dark:text-zinc-400 mb-4">
+              &ldquo;{feature.name}&rdquo; will be removed. Add an optional reason for the record.
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason (optional)"
+              rows={3}
+              className="w-full px-3 py-2 text-sm border border-slate-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-red-400 resize-none mb-4"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setShowRejectModal(false); setRejectReason(""); }}
+                className="h-9 px-4 text-sm border border-slate-200 dark:border-zinc-700 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                data-testid="confirm-reject"
+                onClick={handleRejectSubmit}
+                disabled={reviewing}
+                className="h-9 px-4 text-sm bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg transition-colors"
+              >
+                Reject
               </button>
             </div>
           </div>

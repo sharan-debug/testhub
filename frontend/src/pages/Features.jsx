@@ -1,46 +1,56 @@
-import { useEffect, useState, useMemo } from "react";
-import { api } from "../lib/api";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Zap, Search, Upload } from "lucide-react";
+import { Clock, Search, Upload, Zap } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
+import { api } from "../lib/api";
 
 export default function Features() {
   const [features, setFeatures] = useState([]);
   const [q, setQ] = useState("");
   const [activeTag, setActiveTag] = useState("");
+  const [activeFilter, setActiveFilter] = useState("all"); // "all" | "pending"
   const [loading, setLoading] = useState(true);
   const [coreFeaturesMap, setCoreFeaturesMap] = useState({});
   const navigate = useNavigate();
   const { user } = useAuth();
   const canEdit = user?.role !== "viewer";
+  const canReview = user?.role === "approver" || user?.role === "admin";
 
-  const load = async () => {
+  const load = useCallback(async () => {
     setLoading(true);
     try {
       const r = await api.get("/features");
       setFeatures(r.data);
     } catch (e) { console.error(e); }
     setLoading(false);
-  };
+  }, []);
 
   useEffect(() => {
     load();
     api.get("/core-features").then((r) => {
       const map = {};
-      r.data.forEach((cf) => { map[cf.id] = cf.name; });
+      for (const cf of r.data) { map[cf.id] = cf.name; }
       setCoreFeaturesMap(map);
     }).catch(() => {});
-  }, []);
+  }, [load]);
 
   const allTags = useMemo(() => {
     const s = new Set();
-    features.forEach((f) => (f.tags || []).forEach((t) => s.add(t)));
+    for (const f of features) {
+      for (const t of (f.tags || [])) s.add(t);
+    }
     return Array.from(s);
   }, [features]);
+
+  const pendingCount = useMemo(
+    () => features.filter((f) => f.pending_review).length,
+    [features],
+  );
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return features.filter((f) => {
+      if (activeFilter === "pending" && !f.pending_review) return false;
       if (activeTag && !(f.tags || []).includes(activeTag)) return false;
       if (!query) return true;
       const hay = [
@@ -54,14 +64,14 @@ export default function Features() {
       ].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(query);
     });
-  }, [features, q, activeTag]);
+  }, [features, q, activeTag, activeFilter]);
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">
       <div className="flex items-start justify-between mb-6">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Library</p>
-          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900">Features</h1>
+          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900 dark:text-zinc-100">Features</h1>
         </div>
         {canEdit && (
           <div className="flex gap-2">
@@ -69,7 +79,7 @@ export default function Features() {
               data-testid="import-btn"
               type="button"
               onClick={() => navigate("/import")}
-              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-indigo-200 bg-white hover:bg-indigo-50 text-zinc-600 rounded-lg transition-colors"
+              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors"
             >
               <Upload className="w-4 h-4" /> Import
             </button>
@@ -85,14 +95,60 @@ export default function Features() {
         )}
       </div>
 
+      {/* Needs Review banner for approvers/admins */}
+      {canReview && pendingCount > 0 && activeFilter !== "pending" && (
+        <button
+          type="button"
+          onClick={() => setActiveFilter("pending")}
+          className="w-full mb-4 flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 text-sm font-medium hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors text-left"
+        >
+          <Clock className="w-4 h-4 shrink-0" />
+          <span>{pendingCount} feature{pendingCount !== 1 ? "s" : ""} pending review — click to review</span>
+        </button>
+      )}
+
+      {/* Filter tabs for approvers/admins */}
+      {canReview && (
+        <div className="flex gap-2 mb-4">
+          <button
+            type="button"
+            onClick={() => setActiveFilter("all")}
+            className={`text-[11px] font-mono px-3 py-1.5 rounded-lg border transition-colors ${
+              activeFilter === "all"
+                ? "bg-indigo-600 text-white border-indigo-600"
+                : "bg-white dark:bg-zinc-900 border-indigo-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-indigo-400"
+            }`}
+          >
+            All
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter("pending")}
+            className={`inline-flex items-center gap-1.5 text-[11px] font-mono px-3 py-1.5 rounded-lg border transition-colors ${
+              activeFilter === "pending"
+                ? "bg-amber-500 text-white border-amber-500"
+                : "bg-white dark:bg-zinc-900 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:border-amber-400"
+            }`}
+          >
+            <Clock className="w-3 h-3" />
+            Needs Review
+            {pendingCount > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                activeFilter === "pending" ? "bg-white/20" : "bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400"
+              }`}>{pendingCount}</span>
+            )}
+          </button>
+        </div>
+      )}
+
       <div className="mb-4 relative">
-        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-indigo-300" />
+        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-indigo-300 dark:text-indigo-600" />
         <input
           data-testid="feature-search-input"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search name, description, tags, test data, Redis keys, experiments, cURL…"
-          className="w-full h-11 pl-9 pr-3 text-sm border border-indigo-100 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm placeholder:text-zinc-400"
+          className="w-full h-11 pl-9 pr-3 text-sm border border-indigo-100 dark:border-zinc-700 rounded-xl bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm placeholder:text-zinc-400 dark:placeholder:text-zinc-600"
         />
       </div>
 
@@ -103,7 +159,7 @@ export default function Features() {
             data-testid="tag-filter-all"
             onClick={() => setActiveTag("")}
             className={`text-[11px] font-mono px-2.5 py-1 rounded-full border transition-colors ${
-              activeTag === "" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-indigo-200 text-zinc-600 hover:border-indigo-400"
+              activeTag === "" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white dark:bg-zinc-900 border-indigo-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-indigo-400"
             }`}
           >
             all
@@ -115,7 +171,7 @@ export default function Features() {
               data-testid={`tag-filter-${t}`}
               onClick={() => setActiveTag(t === activeTag ? "" : t)}
               className={`text-[11px] font-mono px-2.5 py-1 rounded-full border transition-colors ${
-                activeTag === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white border-indigo-200 text-zinc-600 hover:border-indigo-400"
+                activeTag === t ? "bg-indigo-600 text-white border-indigo-600" : "bg-white dark:bg-zinc-900 border-indigo-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-indigo-400"
               }`}
             >
               {t}
@@ -124,19 +180,21 @@ export default function Features() {
         </div>
       )}
 
-      <div className="bg-white border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
-        <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-mono uppercase tracking-widest text-indigo-400 bg-indigo-50/50 border-b border-indigo-100">
+      <div className="bg-white dark:bg-zinc-900 border border-indigo-100 dark:border-zinc-800 rounded-xl shadow-sm overflow-hidden">
+        <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-mono uppercase tracking-widest text-indigo-400 dark:text-indigo-600 bg-indigo-50/50 dark:bg-zinc-800/50 border-b border-indigo-100 dark:border-zinc-800">
           <div className="col-span-4">Feature</div>
           <div className="col-span-2">Owner</div>
           <div className="col-span-3">Tags</div>
           <div className="col-span-2">APIs</div>
           <div className="col-span-1 text-right">Updated</div>
         </div>
-        {loading && <div className="p-8 text-center text-sm text-zinc-400">Loading…</div>}
+        {loading && <div className="p-8 text-center text-sm text-zinc-400 dark:text-zinc-500">Loading…</div>}
         {!loading && filtered.length === 0 && (
           <div className="p-8 text-center">
-            <p className="text-sm text-zinc-400 mb-3">No features match.</p>
-            {canEdit && (
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 mb-3">
+              {activeFilter === "pending" ? "No features pending review." : "No features match."}
+            </p>
+            {canEdit && activeFilter !== "pending" && (
               <button
                 data-testid="features-empty-new"
                 type="button"
@@ -148,29 +206,39 @@ export default function Features() {
             )}
           </div>
         )}
-        <div className="divide-y divide-indigo-50">
+        <div className="divide-y divide-indigo-50 dark:divide-zinc-800">
           {filtered.map((f) => (
-            <Link key={f.id} to={`/features/${f.id}`} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-indigo-50/30 transition-colors" data-testid={`feature-row-${f.id}`}>
+            <Link
+              key={f.id}
+              to={`/features/${f.id}`}
+              className="grid grid-cols-12 px-4 py-3 items-center hover:bg-indigo-50/30 dark:hover:bg-zinc-800/30 transition-colors"
+              data-testid={`feature-row-${f.id}`}
+            >
               <div className="col-span-4 min-w-0">
                 {f.core_feature_id && coreFeaturesMap[f.core_feature_id] && (
-                  <div className="text-[10px] font-mono text-indigo-400 truncate mb-0.5" data-testid={`core-feature-name-${f.id}`}>{coreFeaturesMap[f.core_feature_id]}</div>
+                  <div className="text-[10px] font-mono text-indigo-400 dark:text-indigo-500 truncate mb-0.5" data-testid={`core-feature-name-${f.id}`}>{coreFeaturesMap[f.core_feature_id]}</div>
                 )}
-                <div className="flex items-center gap-1.5">
-                  <div className="font-medium text-sm truncate text-zinc-800">{f.name}</div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <div className="font-medium text-sm truncate text-zinc-800 dark:text-zinc-200">{f.name}</div>
+                  {f.pending_review && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 shrink-0 whitespace-nowrap">
+                      pending
+                    </span>
+                  )}
                   {f.status === "archived" && (
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 shrink-0">archived</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 shrink-0">archived</span>
                   )}
                 </div>
-                <div className="text-xs text-zinc-400 truncate">{f.description || "—"}</div>
+                <div className="text-xs text-zinc-400 dark:text-zinc-500 truncate">{f.description || "—"}</div>
               </div>
-              <div className="col-span-2 text-xs text-zinc-600 truncate">{f.owner || "—"}</div>
+              <div className="col-span-2 text-xs text-zinc-600 dark:text-zinc-400 truncate">{f.owner || "—"}</div>
               <div className="col-span-3 flex gap-1 flex-wrap">
                 {(f.tags || []).slice(0, 3).map((t) => (
-                  <span key={t} className="text-[10px] font-mono px-2 py-0.5 bg-indigo-100 text-indigo-600 rounded-full">{t}</span>
+                  <span key={t} className="text-[10px] font-mono px-2 py-0.5 bg-indigo-100 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-full">{t}</span>
                 ))}
               </div>
-              <div className="col-span-2 text-xs font-mono text-zinc-500">{(f.apis || []).length} endpoints</div>
-              <div className="col-span-1 text-right text-[10px] font-mono text-zinc-400">
+              <div className="col-span-2 text-xs font-mono text-zinc-500 dark:text-zinc-400">{(f.apis || []).length} endpoints</div>
+              <div className="col-span-1 text-right text-[10px] font-mono text-zinc-400 dark:text-zinc-500">
                 {f.updated_at ? new Date(f.updated_at).toLocaleDateString() : "—"}
               </div>
             </Link>

@@ -65,7 +65,7 @@ async def _create_session(user_id: str, response: Response) -> str:
     return session_token
 
 
-async def log_activity(user: User, action: str, feature_id: str, feature_name: str, changed_fields: list | None = None):
+async def log_activity(user: User, action: str, feature_id: str, feature_name: str, changed_fields: list | None = None, note: str | None = None):
     doc = {
         "id": f"act_{uuid.uuid4().hex[:12]}",
         "user_email": user.email,
@@ -77,4 +77,6 @@ async def log_activity(user: User, action: str, feature_id: str, feature_name: s
     }
     if changed_fields is not None:
         doc["changed_fields"] = changed_fields
+    if note:
+        doc["note"] = note
     await db.activity.insert_one(doc)
