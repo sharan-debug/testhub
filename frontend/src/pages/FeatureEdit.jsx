@@ -33,6 +33,8 @@ export default function FeatureEdit() {
   const [cfError, setCfError] = useState("");
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState([]);
+  const [pasteMode, setPasteMode] = useState({});
+  const [pasteText, setPasteText] = useState({});
 
   useEffect(() => {
     api.get("/core-features").then((r) => setCoreFeatures(r.data)).catch(() => {});
@@ -66,6 +68,22 @@ export default function FeatureEdit() {
   const addKV = (key) => update({ [key]: [...(f[key] || []), { key: "", description: "" }] });
   const removeKV = (key, i) => update({ [key]: f[key].filter((_, idx) => idx !== i) });
   const setKV = (key, i, patch) => update({ [key]: f[key].map((item, idx) => idx === i ? { ...item, ...patch } : item) });
+
+  const togglePasteMode = (key) => {
+    setPasteMode((prev) => ({ ...prev, [key]: !prev[key] }));
+    if (pasteMode[key]) setPasteText((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const addPasted = (key) => {
+    const lines = (pasteText[key] || "").split("\n").map((l) => l.trim()).filter(Boolean);
+    const parsed = lines.map((l) => {
+      const sep = l.match(/^(.*?)\s*--?>\s*(.*)$/);
+      return sep ? { key: sep[1].trim(), description: sep[2].trim() } : { key: l, description: "" };
+    });
+    update({ [key]: [...(f[key] || []), ...parsed] });
+    setPasteText((prev) => ({ ...prev, [key]: "" }));
+    setPasteMode((prev) => ({ ...prev, [key]: false }));
+  };
 
   const save = async () => {
     if (!f.name.trim()) { toast.error("Feature name is required"); return; }
@@ -308,14 +326,14 @@ export default function FeatureEdit() {
         </Section>
 
         {[
-          { key: "mongo_collections", title: "MongoDB Collections", ph: "e.g. cancellations", descPh: "What is stored here?", testid: "section-mongo" },
-          { key: "redis_keys", title: "Redis Keys", ph: "e.g. r:jar:cancellation:{user_id}", descPh: "What this key holds", testid: "section-redis" },
-          { key: "experiments", title: "Experiments / Flags", ph: "e.g. CANCELLATION_FLOW_V2", descPh: "Options: CONTROL / TEST", testid: "section-experiments" },
+          { key: "mongo_collections", title: "MongoDB Collections", ph: "e.g. cancellations", descPh: "What is stored here?", testid: "section-mongo", pastePh: "One per line. Use -> to add a note:\ncancellations\ntransactions -> stores txn records" },
+          { key: "redis_keys", title: "Redis Keys", ph: "e.g. r:jar:cancellation:{user_id}", descPh: "What this key holds", testid: "section-redis", pastePh: "One per line. Use -> to add a note:\nr:jar:user:{user_id} -> active session token" },
+          { key: "experiments", title: "Experiments / Flags", ph: "e.g. CANCELLATION_FLOW_V2", descPh: "Options: CONTROL / TEST", testid: "section-experiments", pastePh: "One per line. Use -> to add options:\nCANCELLATION_FLOW_V2 -> CONTROL / TEST" },
         ].map((s) => (
           <Section key={s.key} title={s.title} testid={s.testid}>
             <div className="space-y-2">
               {(f[s.key] || []).map((item, i) => (
-                <div key={i} className="flex gap-2" data-testid={`${s.key}-row-${i}`}>
+                <div key={`${s.key}-${i}`} className="flex gap-2" data-testid={`${s.key}-row-${i}`}>
                   <input value={item.key} onChange={(e) => setKV(s.key, i, { key: e.target.value })} placeholder={s.ph} className={`${inpBase} shrink-0 w-64 font-mono text-xs`} />
                   <input value={item.description} onChange={(e) => setKV(s.key, i, { description: e.target.value })} placeholder={s.descPh} className={`${inpBase} flex-1 min-w-0`} />
                   <button type="button" onClick={() => removeKV(s.key, i)} className="h-9 px-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg">
@@ -323,9 +341,41 @@ export default function FeatureEdit() {
                   </button>
                 </div>
               ))}
-              <button type="button" data-testid={`add-${s.key}-btn`} onClick={() => addKV(s.key)} className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600">
-                <Plus className="w-4 h-4" />Add
-              </button>
+              <div className="flex items-center gap-2 pt-1">
+                <button type="button" data-testid={`add-${s.key}-btn`} onClick={() => addKV(s.key)} className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600">
+                  <Plus className="w-4 h-4" />Add
+                </button>
+                <button
+                  type="button"
+                  onClick={() => togglePasteMode(s.key)}
+                  className={`text-[11px] font-mono h-9 px-3 rounded-lg border transition-colors ${
+                    pasteMode[s.key]
+                      ? "bg-indigo-50 border-indigo-300 text-indigo-600"
+                      : "border-indigo-100 text-zinc-400 hover:text-indigo-600 hover:border-indigo-200"
+                  }`}
+                >
+                  {pasteMode[s.key] ? "Cancel paste" : "Paste multiple"}
+                </button>
+              </div>
+              {pasteMode[s.key] && (
+                <div className="mt-1 space-y-2">
+                  <textarea
+                    value={pasteText[s.key] || ""}
+                    onChange={(e) => setPasteText((prev) => ({ ...prev, [s.key]: e.target.value }))}
+                    placeholder={s.pastePh}
+                    rows={4}
+                    className="w-full px-3 py-2 text-xs font-mono border border-indigo-200 rounded-lg bg-indigo-50/30 focus:outline-none focus:ring-2 focus:ring-indigo-400 resize-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addPasted(s.key)}
+                    disabled={!(pasteText[s.key] || "").trim()}
+                    className="inline-flex items-center gap-1.5 h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white rounded-lg transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />Add all
+                  </button>
+                </div>
+              )}
             </div>
           </Section>
         ))}

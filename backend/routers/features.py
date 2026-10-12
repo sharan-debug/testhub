@@ -417,9 +417,11 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
     contributors.add(user.email)
     updates["contributors"] = list(contributors)
 
-    # Re-queue for review when an editor edits an already-approved feature
+    # Re-queue for review when an editor edits (covers both approved and rejected features)
     if user.role == "editor" and not existing.get("pending_review", False):
         updates["pending_review"] = True
+        updates["rejected"] = False
+        updates["rejection_reason"] = ""
 
     changed_fields = []
     for field in _TRACKED_FIELDS:
@@ -486,18 +488,24 @@ async def reject_feature(feature_id: str, payload: ReviewRejectIn, request: Requ
         )
     await db.features.update_one(
         {"id": feature_id},
-        {"$set": {"is_deleted": True, "deleted_at": now_iso(), "pending_review": False}},
+        {"$set": {
+            "pending_review": False,
+            "rejected": True,
+            "rejection_reason": payload.reason or "",
+            "updated_at": now_iso(),
+        }},
     )
     await log_activity(
         user, "rejected", feature_id, existing["name"],
         note=payload.reason if payload.reason else None,
     )
-    return {"ok": True}
+    doc = await db.features.find_one({"id": feature_id}, {"_id": 0})
+    return doc
 
 
 @router.post("/{feature_id}/verify")
 async def verify_feature(feature_id: str, request: Request):
-    user = await get_current_user(request)
+    user = await require_role("approver")(request)
     existing = await db.features.find_one({"id": feature_id, "is_deleted": {"$ne": True}}, {"_id": 0})
     if not existing:
         raise HTTPException(status_code=404, detail="Feature not found")

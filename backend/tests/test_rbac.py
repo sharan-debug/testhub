@@ -203,9 +203,13 @@ class TestApproverActions:
         await self._setup_approver(client)
         resp = await client.post(f"/api/features/{feature_id}/reject", json={"reason": "Incomplete data"})
         assert resp.status_code == 200
-        # Feature should be soft-deleted
+        # Feature should stay visible but marked as rejected
         get_resp = await client.get(f"/api/features/{feature_id}")
-        assert get_resp.status_code == 404
+        assert get_resp.status_code == 200
+        data = get_resp.json()
+        assert data["rejected"] is True
+        assert data["rejection_reason"] == "Incomplete data"
+        assert data["pending_review"] is False
 
     async def test_editor_cannot_approve_feature(self, client):
         cf_id = await seed_core_feature()

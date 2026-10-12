@@ -225,6 +225,11 @@ export default function Features() {
                       pending
                     </span>
                   )}
+                  {f.rejected && !f.pending_review && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 shrink-0 whitespace-nowrap">
+                      rejected
+                    </span>
+                  )}
                   {f.status === "archived" && (
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 shrink-0">archived</span>
                   )}

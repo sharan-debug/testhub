@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Link2, Link2Off, Loader2, X } from "lucide-react";
 import { api } from "../lib/api";
 import { toast } from "sonner";
 
@@ -313,63 +313,188 @@ function WithdrawalMockForm() {
   );
 }
 
+function ConnectModal({ onClose, onConnected }) {
+  const [form, setForm] = useState({ username: "", password: "" });
+  const [connecting, setConnecting] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.username.trim() || !form.password.trim()) {
+      toast.error("Username and password are required");
+      return;
+    }
+    setConnecting(true);
+    try {
+      await api.post("/qa/connect", form);
+      toast.success("Connected to QA Utility");
+      onConnected();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to connect");
+    }
+    setConnecting(false);
+  };
+
+  const inp = "w-full h-9 px-3 text-sm border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-indigo-500" />
+            <h3 className="font-heading font-black text-sm tracking-tight">Connect to QA Utility</h3>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <p className="text-xs text-zinc-500 mb-4">Enter your QA Utility credentials. They are stored server-side and never sent to the browser.</p>
+        <form onSubmit={submit} className="space-y-3">
+          <input
+            value={form.username}
+            onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+            placeholder="Username"
+            className={inp}
+          />
+          <input
+            type="password"
+            value={form.password}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+            placeholder="Password"
+            className={inp}
+          />
+          <div className="flex gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={connecting}
+              className="flex-1 h-9 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+            >
+              {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+              {connecting ? "Connecting…" : "Connect"}
+            </button>
+            <button type="button" onClick={onClose} className="h-9 px-4 text-sm border border-zinc-200 rounded-lg hover:bg-zinc-50 text-zinc-600">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function QAPanel({ feature, canEdit }) {
-  const [configured, setConfigured] = useState(false);
+  const [status, setStatus] = useState({ url_configured: false, user_connected: false, connected: false });
   const [open, setOpen] = useState(false);
+  const [showConnect, setShowConnect] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
 
   useEffect(() => {
-    api.get("/qa/status").then((r) => setConfigured(r.data.configured)).catch(() => {});
+    api.get("/qa/user-status").then((r) => setStatus(r.data)).catch(() => {});
   }, []);
 
-  if (!configured || !canEdit) return null;
+  const loadStatus = () => {
+    api.get("/qa/user-status").then((r) => setStatus(r.data)).catch(() => {});
+  };
+
+  const disconnect = async () => {
+    setDisconnecting(true);
+    try {
+      await api.post("/qa/disconnect");
+      toast.success("Disconnected from QA Utility");
+      loadStatus();
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Disconnect failed");
+    }
+    setDisconnecting(false);
+  };
+
+  if (!status.url_configured || !canEdit) return null;
 
   const experiments = feature?.experiments || [];
   const redisKeys = feature?.redis_keys || [];
 
   return (
-    <section className="bg-white border border-zinc-200 rounded-sm" data-testid="qa-panel">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between p-5 text-left"
-      >
-        <div className="flex items-center gap-2">
-          <h2 className="font-heading font-black text-sm tracking-tight uppercase text-zinc-500">QA Actions</h2>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-sm">live</span>
-        </div>
-        {open ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
-      </button>
-
-      {open && (
-        <div className="px-5 pb-5 space-y-6 border-t border-zinc-100 pt-4">
-          {experiments.length > 0 && (
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Experiments / Flags</p>
-              <div>
-                {experiments.map((exp) => (
-                  <ExperimentRow key={exp.key} exp={exp} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          {redisKeys.length > 0 && (
-            <div>
-              <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Redis Keys</p>
-              <div>
-                {redisKeys.map((rk) => (
-                  <RedisRow key={rk.key} redisKey={rk} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div>
-            <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Withdrawal Mock</p>
-            <WithdrawalMockForm />
-          </div>
-        </div>
+    <>
+      {showConnect && (
+        <ConnectModal
+          onClose={() => setShowConnect(false)}
+          onConnected={() => { setShowConnect(false); loadStatus(); }}
+        />
       )}
-    </section>
+      <section className="bg-white border border-zinc-200 rounded-sm" data-testid="qa-panel">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="w-full flex items-center justify-between p-5 text-left"
+        >
+          <div className="flex items-center gap-2">
+            <h2 className="font-heading font-black text-sm tracking-tight uppercase text-zinc-500">QA Actions</h2>
+            <span className="text-[10px] font-mono px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-sm">live</span>
+            {!status.connected && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 bg-zinc-100 text-zinc-500 rounded-sm">not connected</span>
+            )}
+          </div>
+          {open ? <ChevronUp className="w-4 h-4 text-zinc-400" /> : <ChevronDown className="w-4 h-4 text-zinc-400" />}
+        </button>
+
+        {open && (
+          <div className="px-5 pb-5 border-t border-zinc-100 pt-4 space-y-6">
+            {!status.connected ? (
+              <div className="flex flex-col items-start gap-3">
+                <p className="text-sm text-zinc-500">Connect with your QA Utility credentials to use live actions.</p>
+                <button
+                  type="button"
+                  onClick={() => setShowConnect(true)}
+                  className="inline-flex items-center gap-1.5 h-9 px-4 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Connect to QA Utility
+                </button>
+              </div>
+            ) : (
+              <>
+                {status.user_connected && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={disconnect}
+                      disabled={disconnecting}
+                      className="inline-flex items-center gap-1.5 h-7 px-2.5 text-[11px] font-mono border border-zinc-200 rounded-sm hover:bg-zinc-50 text-zinc-500 disabled:opacity-50"
+                    >
+                      {disconnecting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Link2Off className="w-3 h-3" />}
+                      Disconnect
+                    </button>
+                  </div>
+                )}
+                {experiments.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Experiments / Flags</p>
+                    <div>
+                      {experiments.map((exp) => (
+                        <ExperimentRow key={exp.key} exp={exp} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {redisKeys.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Redis Keys</p>
+                    <div>
+                      {redisKeys.map((rk) => (
+                        <RedisRow key={rk.key} redisKey={rk} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-zinc-400 mb-2">Withdrawal Mock</p>
+                  <WithdrawalMockForm />
+                </div>
+              </>
+            )}
+          </div>
+        )}
+      </section>
+    </>
   );
 }

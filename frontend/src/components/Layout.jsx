@@ -1,7 +1,7 @@
 // biome-ignore assist/source/organizeImports: <explanation>
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Beaker, FlaskConical, LayoutDashboard, Library, LogOut, Settings, Sparkles, Upload, Zap } from "lucide-react";
+import { Beaker, FlaskConical, LayoutDashboard, Library, LogOut, Settings, Sparkles, Upload, UserCog, Zap } from "lucide-react";
 import ChatAgent from "./ChatAgent";
 import ThemeToggle from "./ThemeToggle";
 import { useState } from "react";
@@ -322,6 +322,20 @@ export default function Layout() {
                       }`}
                     />
                     Core Features
+                  </>
+                )}
+              </NavLink>
+              <NavLink to="/admin/users" data-testid="nav-admin-users" className={navCls}>
+                {({ isActive }) => (
+                  <>
+                    <UserCog
+                      className={`w-4 h-4 transition-colors duration-200 ${
+                        isActive
+                          ? "text-blue-500 dark:text-blue-400"
+                          : "text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300"
+                      }`}
+                    />
+                    Users
                   </>
                 )}
               </NavLink>

@@ -1,5 +1,7 @@
 import pytest
-from tests.conftest import register_and_login, seed_core_feature
+from httpx import AsyncClient, ASGITransport
+from server import app
+from tests.conftest import register_and_login, seed_core_feature, set_role
 
 
 @pytest.fixture
@@ -98,10 +100,14 @@ class TestVerify:
     async def test_verify_sets_metadata(self, editor, cf_id):
         create = await editor.post("/api/features", json={"name": "F1", "core_feature_id": cf_id})
         fid = create.json()["id"]
-        r = await editor.post(f"/api/features/{fid}/verify")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as approver_client:
+            await register_and_login(approver_client, "approver@test.com")
+            await set_role("approver@test.com", "approver")
+            await approver_client.post("/api/auth/login", json={"email": "approver@test.com", "password": "Password1!"})
+            r = await approver_client.post(f"/api/features/{fid}/verify")
         assert r.status_code == 200
         body = r.json()
-        assert body["last_verified_by"] == "editor@test.com"
+        assert body["last_verified_by"] == "approver@test.com"
         assert body["last_verified_at"] is not None
 
     async def test_unauthenticated_cannot_verify(self, client, cf_id):
