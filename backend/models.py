@@ -53,6 +53,8 @@ class Feature(BaseModel):
     is_deleted: bool = False
     deleted_at: Optional[str] = None
     pending_review: bool = False
+    rejected: bool = False
+    rejection_reason: str = ""
 
 
 class FeatureCreate(BaseModel):

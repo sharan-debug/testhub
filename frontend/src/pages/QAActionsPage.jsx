@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link2, Loader2, X } from "lucide-react";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 
@@ -389,40 +389,122 @@ function VpaMockTab() {
   );
 }
 
+// ---------- Connect modal ----------
+
+function ConnectModal({ onClose, onConnected }) {
+  const [form, setForm] = useState({ username: "", password: "" });
+  const [connecting, setConnecting] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!form.username.trim() || !form.password.trim()) { toast.error("Username and password are required"); return; }
+    setConnecting(true);
+    try {
+      await api.post("/qa/connect", form);
+      toast.success("Connected to QA Utility");
+      onConnected();
+    } catch (err) {
+      toast.error(err?.response?.data?.detail || "Failed to connect");
+    }
+    setConnecting(false);
+  };
+
+  const inp = "w-full h-9 px-3 text-sm border border-indigo-100 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Link2 className="w-4 h-4 text-indigo-500" />
+            <h3 className="font-heading font-black text-sm tracking-tight">Connect to QA Utility</h3>
+          </div>
+          <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
+        </div>
+        <p className="text-xs text-zinc-500 mb-4">Your credentials are stored server-side and never sent to the browser.</p>
+        <form onSubmit={submit} className="space-y-3">
+          <input value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} placeholder="Username" className={inp} />
+          <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Password" className={inp} />
+          <div className="flex gap-2 pt-1">
+            <button type="submit" disabled={connecting} className="flex-1 h-9 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-1.5 transition-colors">
+              {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+              {connecting ? "Connecting…" : "Connect"}
+            </button>
+            <button type="button" onClick={onClose} className="h-9 px-4 text-sm border border-zinc-200 rounded-lg hover:bg-zinc-50 text-zinc-600">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ---------- Page ----------
 
 export default function QAActionsPage() {
   const [tab, setTab] = useState("Experiments");
+  const [qaStatus, setQaStatus] = useState(null);
+  const [showConnect, setShowConnect] = useState(false);
+
+  useEffect(() => {
+    api.get("/qa/user-status").then((r) => setQaStatus(r.data)).catch(() => setQaStatus({ url_configured: false, connected: false }));
+  }, []);
+
+  const handleConnected = () => {
+    setShowConnect(false);
+    api.get("/qa/user-status").then((r) => setQaStatus(r.data)).catch(() => {});
+  };
 
   return (
-    <div className="p-6 md:p-8 max-w-3xl">
-      <div className="mb-6">
-        <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">QA Utility</p>
-        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900">QA Actions</h1>
-        <p className="text-sm text-zinc-400 mt-1.5">Live operations — changes take effect in the QA environment immediately.</p>
-      </div>
+    <>
+      {showConnect && <ConnectModal onClose={() => setShowConnect(false)} onConnected={handleConnected} />}
+      <div className="p-6 md:p-8 max-w-3xl">
+        <div className="mb-6">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">QA Utility</p>
+          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900 dark:text-zinc-100">QA Actions</h1>
+          <p className="text-sm text-zinc-400 mt-1.5">Live operations — changes take effect in the QA environment immediately.</p>
+        </div>
 
-      <div className="flex gap-0 border-b border-indigo-100 mb-6">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={`px-4 py-2.5 text-sm transition-colors border-b-2 -mb-px ${
-              tab === t
-                ? "border-indigo-600 text-indigo-600 font-medium"
-                : "border-transparent text-zinc-400 hover:text-zinc-700"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
+        {qaStatus && !qaStatus.connected && (
+          <div className="mb-6 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <Link2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-amber-800">Not connected to QA Utility</p>
+              <p className="text-xs text-amber-700 mt-0.5">Connect with your credentials to use live actions.</p>
+            </div>
+            {qaStatus.url_configured && (
+              <button
+                type="button"
+                onClick={() => setShowConnect(true)}
+                className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+              >
+                <Link2 className="w-3.5 h-3.5" />Connect
+              </button>
+            )}
+          </div>
+        )}
 
-      {tab === "Experiments" && <ExperimentsTab />}
-      {tab === "Redis" && <RedisTab />}
-      {tab === "Withdrawal Mock" && <WithdrawalMockTab />}
-      {tab === "Mock VPA" && <VpaMockTab />}
-    </div>
+        <div className="flex gap-0 border-b border-indigo-100 mb-6">
+          {TABS.map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={`px-4 py-2.5 text-sm transition-colors border-b-2 -mb-px ${
+                tab === t
+                  ? "border-indigo-600 text-indigo-600 font-medium"
+                  : "border-transparent text-zinc-400 hover:text-zinc-700"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {tab === "Experiments" && <ExperimentsTab />}
+        {tab === "Redis" && <RedisTab />}
+        {tab === "Withdrawal Mock" && <WithdrawalMockTab />}
+        {tab === "Mock VPA" && <VpaMockTab />}
+      </div>
+    </>
   );
 }

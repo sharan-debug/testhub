@@ -1,5 +1,7 @@
 import pytest
-from tests.conftest import register_and_login, seed_core_feature
+from httpx import AsyncClient, ASGITransport
+from server import app
+from tests.conftest import register_and_login, seed_core_feature, set_role
 
 
 @pytest.fixture
@@ -37,7 +39,11 @@ class TestFeatureHistory:
     async def test_verify_logged(self, editor, cf_id):
         r = await editor.post("/api/features", json={"name": "F1", "core_feature_id": cf_id})
         fid = r.json()["id"]
-        await editor.post(f"/api/features/{fid}/verify")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as approver_client:
+            await register_and_login(approver_client, "approver@test.com")
+            await set_role("approver@test.com", "approver")
+            await approver_client.post("/api/auth/login", json={"email": "approver@test.com", "password": "Password1!"})
+            await approver_client.post(f"/api/features/{fid}/verify")
         h = await editor.get(f"/api/features/{fid}/history")
         actions = [e["action"] for e in h.json()]
         assert "verified" in actions
@@ -46,7 +52,11 @@ class TestFeatureHistory:
         r = await editor.post("/api/features", json={"name": "F1", "core_feature_id": cf_id})
         fid = r.json()["id"]
         await editor.put(f"/api/features/{fid}", json={"name": "F1 v2"})
-        await editor.post(f"/api/features/{fid}/verify")
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as approver_client:
+            await register_and_login(approver_client, "approver@test.com")
+            await set_role("approver@test.com", "approver")
+            await approver_client.post("/api/auth/login", json={"email": "approver@test.com", "password": "Password1!"})
+            await approver_client.post(f"/api/features/{fid}/verify")
         events = (await editor.get(f"/api/features/{fid}/history")).json()
         assert events[0]["action"] == "verified"
         assert events[-1]["action"] == "submitted_for_review"

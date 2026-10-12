@@ -48,3 +48,5 @@ async def ensure_indexes():
 
     await db.ai_feedback.create_index([("timestamp", -1)])
     await db.ai_feedback.create_index("session_id")
+
+    await db.qa_user_tokens.create_index("user_id", unique=True)

@@ -203,6 +203,14 @@ export default function FeatureDetail() {
                 <Clock className="w-3 h-3" /> pending review
               </span>
             )}
+            {feature.rejected && (
+              <span
+                className="inline-flex items-center gap-1 text-[11px] font-mono px-2 py-0.5 rounded-full bg-red-100 dark:bg-red-950/40 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-800"
+                data-testid="rejected-badge"
+              >
+                <XCircle className="w-3 h-3" /> rejected
+              </span>
+            )}
             {feature.status === "archived" && (
               <span
                 className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400"
@@ -238,6 +246,21 @@ export default function FeatureDetail() {
             <div className="flex items-center gap-1.5 mt-2 text-xs font-mono text-emerald-600 dark:text-emerald-400" data-testid="verified-meta">
               <ShieldCheck className="w-3.5 h-3.5" />
               verified {new Date(feature.last_verified_at).toLocaleDateString()} by {feature.last_verified_by}
+            </div>
+          )}
+
+          {feature.rejected && (
+            <div className="mt-3 flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900" data-testid="rejection-reason-banner">
+              <XCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-red-700 dark:text-red-400">This feature was rejected by the reviewer</p>
+                {feature.rejection_reason && (
+                  <p className="text-sm text-red-600 dark:text-red-500 mt-0.5">{feature.rejection_reason}</p>
+                )}
+                {canEdit && (
+                  <p className="text-xs text-red-500 dark:text-red-600 mt-1">Edit the feature and save to re-submit for approval.</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -277,14 +300,16 @@ export default function FeatureDetail() {
               </button>
             </>
           )}
-          <button
-            data-testid="verify-feature-btn"
-            type="button"
-            onClick={handleVerify}
-            className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-lg transition-colors"
-          >
-            <ShieldCheck className="w-3.5 h-3.5" /> Verify
-          </button>
+          {canReview && (
+            <button
+              data-testid="verify-feature-btn"
+              type="button"
+              onClick={handleVerify}
+              className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-emerald-200 dark:border-emerald-800 bg-white dark:bg-zinc-900 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 rounded-lg transition-colors"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" /> Verify
+            </button>
+          )}
           {canEdit && (
             <button
               data-testid="edit-feature-btn"

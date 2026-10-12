@@ -15,9 +15,10 @@ async def get_activity(request: Request, limit: int = 30):
 @router.get("/stats")
 async def get_stats(request: Request):
     await get_current_user(request)
-    total_features = await db.features.count_documents({})
-    contributors = await db.features.distinct("contributors")
-    all_tags = await db.features.distinct("tags")
+    _live = {"is_deleted": {"$ne": True}}
+    total_features = await db.features.count_documents(_live)
+    contributors = await db.features.distinct("contributors", _live)
+    all_tags = await db.features.distinct("tags", _live)
     recent = await db.activity.find({}, {"_id": 0}).sort("timestamp", -1).to_list(5)
     return {
         "total_features": total_features,
