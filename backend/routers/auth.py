@@ -47,6 +47,10 @@ async def login(payload: LoginIn, response: Response):
     if not match:
         raise HTTPException(status_code=401, detail="Invalid email or password")
     await _create_session(user_doc["user_id"], response)
+    await db.users.update_one(
+        {"user_id": user_doc["user_id"]},
+        {"$set": {"last_login_at": now_iso()}},
+    )
     return {
         "user_id": user_doc["user_id"],
         "email": user_doc["email"],

@@ -2,9 +2,20 @@ import uuid
 from fastapi import APIRouter, HTTPException, Request
 from database import db
 from models import UserRoleUpdate, now_iso
-from dependencies import require_role, ROLE_HIERARCHY
+from dependencies import get_current_user, require_role, ROLE_HIERARCHY
 
 router = APIRouter(prefix="/api/users")
+
+
+@router.get("/approvers")
+async def list_approvers(request: Request):
+    """Return users with approver or admin role. Accessible to any logged-in user (for reviewer picker)."""
+    await get_current_user(request)
+    docs = await db.users.find(
+        {"role": {"$in": ["approver", "admin"]}},
+        {"_id": 0, "user_id": 1, "name": 1, "email": 1, "role": 1},
+    ).to_list(200)
+    return docs
 
 
 @router.get("")
