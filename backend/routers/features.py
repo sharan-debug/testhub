@@ -226,6 +226,25 @@ async def import_features(
     return {"imported": imported, "skipped": skipped, "errors": errors}
 
 
+@router.get("/pending-count")
+async def pending_count(request: Request):
+    user = await get_current_user(request)
+    if user.role not in ("approver", "admin"):
+        return {"count": 0}
+    query = {
+        "is_deleted": {"$ne": True},
+        "pending_review": True,
+        "$or": [
+            {"assigned_approver_id": {"$exists": False}},
+            {"assigned_approver_id": None},
+            {"assigned_approver_id": ""},
+            {"assigned_approver_id": user.user_id},
+        ],
+    }
+    count = await db.features.count_documents(query)
+    return {"count": count}
+
+
 @router.get("")
 async def list_features(request: Request, q: Optional[str] = None, tag: Optional[str] = None, owner: Optional[str] = None):
     await get_current_user(request)
