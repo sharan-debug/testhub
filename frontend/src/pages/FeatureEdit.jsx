@@ -1,3 +1,4 @@
+// biome-ignore assist/source/organizeImports: <explanation>
 import { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { api } from "../lib/api";
@@ -7,7 +8,7 @@ import { toast } from "sonner";
 
 const EMPTY = {
   name: "", core_feature_id: "", jira_ticket: "", description: "", tags: [],
-  status: "active",
+  status: "active", assigned_approver_id: "",
   test_data: "", test_steps: "", mocking_steps: "",
   apis: [], mongo_collections: [], redis_keys: [], experiments: [],
 };
@@ -35,9 +36,11 @@ export default function FeatureEdit() {
   const [pendingAttachments, setPendingAttachments] = useState([]);
   const [pasteMode, setPasteMode] = useState({});
   const [pasteText, setPasteText] = useState({});
+  const [approvers, setApprovers] = useState([]);
 
   useEffect(() => {
     api.get("/core-features").then((r) => setCoreFeatures(r.data)).catch(() => {});
+    api.get("/users/approvers").then((r) => setApprovers(r.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -95,6 +98,7 @@ export default function FeatureEdit() {
         name: f.name, core_feature_id: f.core_feature_id,
         jira_ticket: f.jira_ticket, description: f.description, tags: f.tags,
         ...(isEdit ? { status: f.status } : {}),
+        ...(f.assigned_approver_id ? { assigned_approver_id: f.assigned_approver_id } : {}),
         test_data: f.test_data, test_steps: f.test_steps, mocking_steps: f.mocking_steps,
         apis: f.apis, mongo_collections: f.mongo_collections, redis_keys: f.redis_keys, experiments: f.experiments,
       };
@@ -235,6 +239,25 @@ export default function FeatureEdit() {
                 {user?.name || "—"}
               </div>
             </div>
+            {user?.role === "editor" && (
+              <div>
+                <label htmlFor="input-assigned-approver" className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 block mb-1.5">
+                  Assign Reviewer <span className="normal-case font-sans text-zinc-400">(optional)</span>
+                </label>
+                <select
+                  id="input-assigned-approver"
+                  data-testid="input-assigned-approver"
+                  value={f.assigned_approver_id || ""}
+                  onChange={(e) => update({ assigned_approver_id: e.target.value })}
+                  className={inp}
+                >
+                  <option value="">Any approver</option>
+                  {approvers.map((a) => (
+                    <option key={a.user_id} value={a.user_id}>{a.name} ({a.email})</option>
+                  ))}
+                </select>
+              </div>
+            )}
             {isEdit && (
               <div>
                 <label className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 block mb-1.5">Status</label>

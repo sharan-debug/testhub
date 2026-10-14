@@ -1,6 +1,6 @@
+import { Clock, Search, Upload, Zap } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Clock, Search, Upload, Zap } from "lucide-react";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../lib/api";
 
@@ -42,15 +42,19 @@ export default function Features() {
     return Array.from(s);
   }, [features]);
 
-  const pendingCount = useMemo(
-    () => features.filter((f) => f.pending_review).length,
-    [features],
-  );
+  const pendingCount = useMemo(() => features.filter((f) => {
+    if (!f.pending_review) return false;
+    if (canReview && f.assigned_approver_id && f.assigned_approver_id !== user?.user_id) return false;
+    return true;
+  }).length, [features, canReview, user?.user_id]);
 
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return features.filter((f) => {
-      if (activeFilter === "pending" && !f.pending_review) return false;
+      if (activeFilter === "pending") {
+        if (!f.pending_review) return false;
+        if (canReview && f.assigned_approver_id && f.assigned_approver_id !== user?.user_id) return false;
+      }
       if (activeTag && !(f.tags || []).includes(activeTag)) return false;
       if (!query) return true;
       const hay = [
@@ -64,7 +68,7 @@ export default function Features() {
       ].filter(Boolean).join(" ").toLowerCase();
       return hay.includes(query);
     });
-  }, [features, q, activeTag, activeFilter]);
+  }, [features, q, activeTag, activeFilter, canReview, user?.user_id]);
 
   return (
     <div className="p-6 md:p-8 max-w-6xl">

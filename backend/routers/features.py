@@ -369,10 +369,25 @@ async def get_feature(feature_id: str, request: Request):
     return doc
 
 
+async def _validate_assigned_approver(assigned_approver_id: Optional[str]):
+    if not assigned_approver_id:
+        return
+    doc = await db.users.find_one(
+        {"user_id": assigned_approver_id, "role": {"$in": ["approver", "admin"]}},
+        {"_id": 0, "user_id": 1},
+    )
+    if not doc:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "INVALID_APPROVER", "message": "Assigned reviewer must have approver or admin role"}},
+        )
+
+
 @router.post("")
 async def create_feature(payload: FeatureCreate, request: Request):
     user = await require_role("editor")(request)
     await _validate_core_feature_id(payload.core_feature_id)
+    await _validate_assigned_approver(payload.assigned_approver_id)
     needs_review = user.role == "editor"
     feature = Feature(
         **payload.model_dump(),
@@ -406,7 +421,14 @@ async def update_feature(feature_id: str, payload: FeatureUpdate, request: Reque
             detail={"error": {"code": "INVALID_STATUS", "message": "status must be 'active' or 'archived'"}},
         )
 
-    updates = {k: v for k, v in payload.model_dump().items() if v is not None}
+    raw = payload.model_dump()
+    # assigned_approver_id can be explicitly set to None to clear it; handle separately
+    assigned_approver_id = raw.pop("assigned_approver_id", None)
+    updates = {k: v for k, v in raw.items() if v is not None}
+    if assigned_approver_id is not None:
+        await _validate_assigned_approver(assigned_approver_id)
+        updates["assigned_approver_id"] = assigned_approver_id
+
     for key in ["apis", "mongo_collections", "redis_keys", "experiments"]:
         if key in updates:
             updates[key] = [item if isinstance(item, dict) else item.model_dump() for item in updates[key]]

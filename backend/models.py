@@ -55,6 +55,7 @@ class Feature(BaseModel):
     pending_review: bool = False
     rejected: bool = False
     rejection_reason: str = ""
+    assigned_approver_id: Optional[str] = None
 
 
 class FeatureCreate(BaseModel):
@@ -70,6 +71,7 @@ class FeatureCreate(BaseModel):
     mongo_collections: List[KeyValueItem] = Field(default_factory=list)
     redis_keys: List[KeyValueItem] = Field(default_factory=list)
     experiments: List[KeyValueItem] = Field(default_factory=list)
+    assigned_approver_id: Optional[str] = None
 
 
 class FeatureUpdate(BaseModel):
@@ -86,6 +88,7 @@ class FeatureUpdate(BaseModel):
     mongo_collections: Optional[List[KeyValueItem]] = None
     redis_keys: Optional[List[KeyValueItem]] = None
     experiments: Optional[List[KeyValueItem]] = None
+    assigned_approver_id: Optional[str] = None
 
 
 class User(BaseModel):
