@@ -1,10 +1,14 @@
+import base64
+import hashlib
 import logging
+import os
 import httpx
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
-from database import QA_UTILITY_URL, QA_UTILITY_USERNAME, QA_UTILITY_PASSWORD, db
+from cryptography.fernet import Fernet
+from database import QA_UTILITY_URL, QA_UTILITY_USERNAME, QA_UTILITY_PASSWORD, QA_ENCRYPTION_KEY, db
 from dependencies import get_current_user, require_role
 
 logger = logging.getLogger(__name__)
@@ -13,6 +17,58 @@ router = APIRouter(prefix="/api/qa")
 
 _global_token_cache: dict = {"value": None, "expires_at": None}
 
+
+# ---------- Encryption helpers ----------
+
+def _get_fernet() -> Fernet:
+    key = QA_ENCRYPTION_KEY
+    if not key:
+        raw = hashlib.sha256(
+            f"testhub-qa-{os.environ.get('DB_NAME', 'testhub')}".encode()
+        ).digest()
+        key = base64.urlsafe_b64encode(raw).decode()
+        logger.warning(
+            "QA_ENCRYPTION_KEY not set; using derived key. "
+            "Add QA_ENCRYPTION_KEY to .env for proper at-rest encryption."
+        )
+    return Fernet(key.encode() if isinstance(key, str) else key)
+
+
+def _encrypt(plaintext: str) -> str:
+    return _get_fernet().encrypt(plaintext.encode()).decode()
+
+
+def _decrypt(ciphertext: str) -> str:
+    return _get_fernet().decrypt(ciphertext.encode()).decode()
+
+
+# ---------- Token fetch ----------
+
+async def _fetch_qa_token(username: str, password: str) -> tuple[str, str]:
+    """POST to QA Utility /auth/token; returns (token, expires_at_iso)."""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.post(
+                f"{QA_UTILITY_URL}/auth/token",
+                json={"username": username, "password": password},
+            )
+    except httpx.TimeoutException:
+        raise HTTPException(status_code=504, detail="QA utility timed out. Check your VPN connection.")
+    if not r.is_success:
+        raise HTTPException(status_code=401, detail="Invalid QA utility credentials")
+    payload = r.json()
+    # Response may be {"status":200,"data":{"token":"...","expiresIn":86400000}}
+    # or plain {"token":"...","expiresIn":86400000}
+    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+    token = data.get("token")
+    if not token:
+        raise HTTPException(status_code=502, detail="QA utility did not return a token")
+    expires_in_ms = data.get("expiresIn", 86400000)
+    expires_at = (datetime.now(timezone.utc) + timedelta(milliseconds=expires_in_ms)).isoformat()
+    return token, expires_at
+
+
+# ---------- Global credential helpers ----------
 
 def _url_configured() -> bool:
     return bool(QA_UTILITY_URL)
@@ -24,22 +80,16 @@ def _has_global_creds() -> bool:
 
 async def _get_global_token() -> str:
     now = datetime.now(timezone.utc)
-    if _global_token_cache["value"] and _global_token_cache["expires_at"] and now < _global_token_cache["expires_at"]:
+    if (
+        _global_token_cache["value"]
+        and _global_token_cache["expires_at"]
+        and now < _global_token_cache["expires_at"]
+    ):
         return _global_token_cache["value"]
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(
-                f"{QA_UTILITY_URL}/auth/token",
-                json={"username": QA_UTILITY_USERNAME, "password": QA_UTILITY_PASSWORD},
-            )
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="QA utility timed out. Check your VPN connection.")
-    if not r.is_success:
-        raise HTTPException(status_code=502, detail="QA utility authentication failed")
-    data = r.json()
-    _global_token_cache["value"] = data["token"]
-    _global_token_cache["expires_at"] = now + timedelta(hours=23)
-    return _global_token_cache["value"]
+    token, expires_at_iso = await _fetch_qa_token(QA_UTILITY_USERNAME, QA_UTILITY_PASSWORD)
+    _global_token_cache["value"] = token
+    _global_token_cache["expires_at"] = datetime.fromisoformat(expires_at_iso)
+    return token
 
 
 def _reset_global_token():
@@ -47,19 +97,47 @@ def _reset_global_token():
     _global_token_cache["expires_at"] = None
 
 
+# ---------- Per-user effective token ----------
+
 async def _get_effective_token(user_id: str) -> tuple[str, bool]:
-    """Returns (token, is_user_token). Per-user stored token takes priority; falls back to global env creds."""
+    """Returns (token, is_user_token). Per-user token takes priority; falls back to global."""
     now = datetime.now(timezone.utc)
     user_doc = await db.qa_user_tokens.find_one({"user_id": user_id})
-    if user_doc and user_doc.get("token"):
+    if user_doc:
+        token = user_doc.get("token")
         expires_raw = user_doc.get("expires_at")
-        if expires_raw is None or datetime.fromisoformat(expires_raw) > now:
-            return user_doc["token"], True
+        token_valid = token and (
+            expires_raw is None or datetime.fromisoformat(expires_raw) > now
+        )
+        if token_valid:
+            return token, True
+        # Token expired — try auto-refresh using stored credentials
+        username = user_doc.get("username")
+        encrypted_pw = user_doc.get("encrypted_password")
+        if username and encrypted_pw:
+            try:
+                password = _decrypt(encrypted_pw)
+                new_token, new_expires = await _fetch_qa_token(username, password)
+                await db.qa_user_tokens.update_one(
+                    {"user_id": user_id},
+                    {"$set": {"token": new_token, "expires_at": new_expires}},
+                )
+                logger.info("QA: auto-refreshed token for user_id=%s", user_id)
+                return new_token, True
+            except HTTPException:
+                # Auto-refresh failed — clear token but keep credentials
+                await db.qa_user_tokens.update_one(
+                    {"user_id": user_id},
+                    {"$unset": {"token": "", "expires_at": ""}},
+                )
+                logger.warning("QA: auto-refresh failed for user_id=%s", user_id)
+            except Exception as exc:
+                logger.error("QA: auto-refresh error for user_id=%s: %s", user_id, exc)
     if _has_global_creds():
         return await _get_global_token(), False
     raise HTTPException(
         status_code=503,
-        detail="QA utility: not connected. Use 'Connect to QA Utility' in the QA Actions panel.",
+        detail="QA utility: not connected. Use 'Connect to QA Utility' on the QA Actions page.",
     )
 
 
@@ -78,7 +156,10 @@ async def _qa(method: str, path: str, *, user_id: str, params: dict = None, body
         raise HTTPException(status_code=504, detail="QA utility timed out. Check your VPN connection.")
     if r.status_code == 401:
         if is_user_token:
-            await db.qa_user_tokens.delete_one({"user_id": user_id})
+            await db.qa_user_tokens.update_one(
+                {"user_id": user_id},
+                {"$unset": {"token": "", "expires_at": ""}},
+            )
         else:
             _reset_global_token()
         raise HTTPException(status_code=502, detail="QA utility: session expired. Please reconnect.")
@@ -88,12 +169,12 @@ async def _qa(method: str, path: str, *, user_id: str, params: dict = None, body
     return r.json() if r.text.strip() else {}
 
 
+# ---------- Status / Connection endpoints ----------
+
 class QaConnectIn(BaseModel):
     username: str
     password: str
 
-
-# ---------- Status / Connection ----------
 
 @router.get("/status")
 async def qa_status(request: Request):
@@ -107,11 +188,30 @@ async def qa_user_status(request: Request):
     user = await get_current_user(request)
     url_configured = _url_configured()
     user_connected = False
+    connected_username = None
     if url_configured:
+        now = datetime.now(timezone.utc)
         user_doc = await db.qa_user_tokens.find_one({"user_id": user.user_id})
-        user_connected = bool(user_doc and user_doc.get("token"))
+        if user_doc:
+            username = user_doc.get("username")
+            encrypted_pw = user_doc.get("encrypted_password")
+            token = user_doc.get("token")
+            expires_raw = user_doc.get("expires_at")
+            token_valid = token and (
+                expires_raw is None or datetime.fromisoformat(expires_raw) > now
+            )
+            # Connected if token valid OR if we have stored creds for auto-refresh
+            has_creds = bool(username and encrypted_pw)
+            user_connected = bool(token_valid or has_creds)
+            if user_connected:
+                connected_username = username
     connected = url_configured and (user_connected or _has_global_creds())
-    return {"url_configured": url_configured, "user_connected": user_connected, "connected": connected}
+    return {
+        "url_configured": url_configured,
+        "user_connected": user_connected,
+        "connected_username": connected_username,
+        "connected": connected,
+    }
 
 
 @router.post("/connect")
@@ -119,23 +219,19 @@ async def qa_connect(payload: QaConnectIn, request: Request):
     user = await get_current_user(request)
     if not _url_configured():
         raise HTTPException(status_code=503, detail="QA utility URL not configured")
-    try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.post(
-                f"{QA_UTILITY_URL}/auth/token",
-                json={"username": payload.username, "password": payload.password},
-            )
-    except httpx.TimeoutException:
-        raise HTTPException(status_code=504, detail="QA utility timed out. Check your VPN connection.")
-    if not r.is_success:
-        raise HTTPException(status_code=401, detail="Invalid QA utility credentials")
-    token = r.json().get("token")
-    if not token:
-        raise HTTPException(status_code=502, detail="QA utility did not return a token")
-    expires_at = (datetime.now(timezone.utc) + timedelta(hours=23)).isoformat()
+    token, expires_at = await _fetch_qa_token(payload.username, payload.password)
+    encrypted_pw = _encrypt(payload.password)
     await db.qa_user_tokens.update_one(
         {"user_id": user.user_id},
-        {"$set": {"user_id": user.user_id, "username": payload.username, "token": token, "expires_at": expires_at}},
+        {
+            "$set": {
+                "user_id": user.user_id,
+                "username": payload.username,
+                "encrypted_password": encrypted_pw,
+                "token": token,
+                "expires_at": expires_at,
+            }
+        },
         upsert=True,
     )
     logger.info("QA: %s connected with username=%s", user.email, payload.username)
@@ -248,7 +344,10 @@ async def set_redis(payload: RedisSet, request: Request):
                 )
             if r.status_code == 401:
                 if is_user_token:
-                    await db.qa_user_tokens.delete_one({"user_id": user.user_id})
+                    await db.qa_user_tokens.update_one(
+                        {"user_id": user.user_id},
+                        {"$unset": {"token": "", "expires_at": ""}},
+                    )
                 else:
                     _reset_global_token()
                 raise HTTPException(status_code=502, detail="QA utility: session expired. Please reconnect.")
