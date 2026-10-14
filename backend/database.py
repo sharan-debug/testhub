@@ -12,6 +12,7 @@ SECURE_COOKIES = os.environ.get('SECURE_COOKIES', 'false').lower() == 'true'
 QA_UTILITY_URL = os.environ.get('QA_UTILITY_URL', '').rstrip('/')
 QA_UTILITY_USERNAME = os.environ.get('QA_UTILITY_USERNAME', '')
 QA_UTILITY_PASSWORD = os.environ.get('QA_UTILITY_PASSWORD', '')
+QA_ENCRYPTION_KEY = os.environ.get('QA_ENCRYPTION_KEY', '')
 
 _mongo_client = AsyncIOMotorClient(os.environ['MONGO_URL'])
 db = _mongo_client[os.environ['DB_NAME']]

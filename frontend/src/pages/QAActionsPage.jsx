@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link2, Loader2, X } from "lucide-react";
+import { CheckCircle2, Link2, Loader2, Lock, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 
@@ -409,7 +409,7 @@ function ConnectModal({ onClose, onConnected }) {
     setConnecting(false);
   };
 
-  const inp = "w-full h-9 px-3 text-sm border border-indigo-100 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
+  const modalInp = "w-full h-9 px-3 text-sm border border-indigo-100 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
@@ -421,19 +421,64 @@ function ConnectModal({ onClose, onConnected }) {
           </div>
           <button type="button" onClick={onClose} className="text-zinc-400 hover:text-zinc-600"><X className="w-4 h-4" /></button>
         </div>
-        <p className="text-xs text-zinc-500 mb-4">Your credentials are stored server-side and never sent to the browser.</p>
+        <p className="text-xs text-zinc-500 mb-4">
+          Your credentials are stored securely server-side and used to auto-refresh your session.
+        </p>
         <form onSubmit={submit} className="space-y-3">
-          <input value={form.username} onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))} placeholder="Username" className={inp} />
-          <input type="password" value={form.password} onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))} placeholder="Password" className={inp} />
+          <input
+            value={form.username}
+            onChange={(e) => setForm((f) => ({ ...f, username: e.target.value }))}
+            placeholder="QA Utility username"
+            className={modalInp}
+          />
+          <input
+            type="password"
+            value={form.password}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+            placeholder="Password"
+            className={modalInp}
+          />
           <div className="flex gap-2 pt-1">
-            <button type="submit" disabled={connecting} className="flex-1 h-9 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-1.5 transition-colors">
+            <button
+              type="submit"
+              disabled={connecting}
+              className="flex-1 h-9 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-lg flex items-center justify-center gap-1.5 transition-colors"
+            >
               {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
               {connecting ? "Connecting…" : "Connect"}
             </button>
-            <button type="button" onClick={onClose} className="h-9 px-4 text-sm border border-zinc-200 rounded-lg hover:bg-zinc-50 text-zinc-600">Cancel</button>
+            <button type="button" onClick={onClose} className="h-9 px-4 text-sm border border-zinc-200 rounded-lg hover:bg-zinc-50 text-zinc-600">
+              Cancel
+            </button>
           </div>
         </form>
       </div>
+    </div>
+  );
+}
+
+// ---------- Locked placeholder ----------
+
+function LockedPlaceholder({ urlConfigured, onConnect }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center mb-4">
+        <Lock className="w-5 h-5 text-zinc-400" />
+      </div>
+      <p className="text-sm font-medium text-zinc-700 mb-1">Connect to use live actions</p>
+      <p className="text-xs text-zinc-400 mb-5 max-w-xs">
+        Connect with your QA Utility credentials to manage experiments, Redis keys, and mocks.
+      </p>
+      {urlConfigured && (
+        <button
+          type="button"
+          onClick={onConnect}
+          className="inline-flex items-center gap-1.5 h-9 px-4 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shadow-sm shadow-indigo-200"
+        >
+          <Link2 className="w-4 h-4" />
+          Connect to QA Utility
+        </button>
+      )}
     </div>
   );
 }
@@ -444,15 +489,38 @@ export default function QAActionsPage() {
   const [tab, setTab] = useState("Experiments");
   const [qaStatus, setQaStatus] = useState(null);
   const [showConnect, setShowConnect] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  const loadStatus = () => {
+    api.get("/qa/user-status")
+      .then((r) => setQaStatus(r.data))
+      .catch(() => setQaStatus({ url_configured: false, user_connected: false, connected: false }));
+  };
 
   useEffect(() => {
-    api.get("/qa/user-status").then((r) => setQaStatus(r.data)).catch(() => setQaStatus({ url_configured: false, connected: false }));
+    api.get("/qa/user-status")
+      .then((r) => setQaStatus(r.data))
+      .catch(() => setQaStatus({ url_configured: false, user_connected: false, connected: false }));
   }, []);
 
   const handleConnected = () => {
     setShowConnect(false);
-    api.get("/qa/user-status").then((r) => setQaStatus(r.data)).catch(() => {});
+    loadStatus();
   };
+
+  const handleDisconnect = async () => {
+    setDisconnecting(true);
+    try {
+      await api.post("/qa/disconnect");
+      toast.success("Disconnected from QA Utility");
+      setQaStatus((s) => ({ ...s, user_connected: false, connected_username: null, connected: false }));
+    } catch (e) {
+      toast.error(e?.response?.data?.detail || "Failed to disconnect");
+    }
+    setDisconnecting(false);
+  };
+
+  const userConnected = qaStatus?.user_connected;
 
   return (
     <>
@@ -464,25 +532,52 @@ export default function QAActionsPage() {
           <p className="text-sm text-zinc-400 mt-1.5">Live operations — changes take effect in the QA environment immediately.</p>
         </div>
 
-        {qaStatus && !qaStatus.connected && (
-          <div className="mb-6 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
-            <Link2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-amber-800">Not connected to QA Utility</p>
-              <p className="text-xs text-amber-700 mt-0.5">Connect with your credentials to use live actions.</p>
-            </div>
-            {qaStatus.url_configured && (
+        {/* Connection status bar */}
+        {qaStatus && (
+          userConnected ? (
+            <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-emerald-50 border border-emerald-200 rounded-xl">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-emerald-800">Connected to QA Utility</p>
+                {qaStatus.connected_username && (
+                  <p className="text-xs text-emerald-700 font-mono">{qaStatus.connected_username}</p>
+                )}
+              </div>
               <button
                 type="button"
-                onClick={() => setShowConnect(true)}
-                className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                onClick={handleDisconnect}
+                disabled={disconnecting}
+                className="shrink-0 inline-flex items-center gap-1 h-7 px-3 text-xs border border-emerald-300 bg-white hover:bg-emerald-50 text-emerald-700 rounded-lg transition-colors disabled:opacity-50"
               >
-                <Link2 className="w-3.5 h-3.5" />Connect
+                {disconnecting && <Loader2 className="w-3 h-3 animate-spin" />}
+                Disconnect
               </button>
-            )}
-          </div>
+            </div>
+          ) : (
+            <div className="mb-6 flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+              <Link2 className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-amber-800">Not connected to QA Utility</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  {qaStatus.url_configured
+                    ? "Connect with your credentials to use live actions."
+                    : "QA Utility URL is not configured — contact your admin."}
+                </p>
+              </div>
+              {qaStatus.url_configured && (
+                <button
+                  type="button"
+                  onClick={() => setShowConnect(true)}
+                  className="shrink-0 inline-flex items-center gap-1.5 h-8 px-3 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors"
+                >
+                  <Link2 className="w-3.5 h-3.5" />Connect
+                </button>
+              )}
+            </div>
+          )
         )}
 
+        {/* Tab bar */}
         <div className="flex gap-0 border-b border-indigo-100 mb-6">
           {TABS.map((t) => (
             <button
@@ -500,10 +595,20 @@ export default function QAActionsPage() {
           ))}
         </div>
 
-        {tab === "Experiments" && <ExperimentsTab />}
-        {tab === "Redis" && <RedisTab />}
-        {tab === "Withdrawal Mock" && <WithdrawalMockTab />}
-        {tab === "Mock VPA" && <VpaMockTab />}
+        {/* Tab content — locked until personally connected */}
+        {!userConnected ? (
+          <LockedPlaceholder
+            urlConfigured={qaStatus?.url_configured}
+            onConnect={() => setShowConnect(true)}
+          />
+        ) : (
+          <>
+            {tab === "Experiments" && <ExperimentsTab />}
+            {tab === "Redis" && <RedisTab />}
+            {tab === "Withdrawal Mock" && <WithdrawalMockTab />}
+            {tab === "Mock VPA" && <VpaMockTab />}
+          </>
+        )}
       </div>
     </>
   );
