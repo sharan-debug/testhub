@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "../lib/api";
 
-const TABS = ["Experiments", "Redis", "Withdrawal Mock", "Mock VPA"];
+const TABS = ["Experiments", "Redis", "Withdrawal Mock", "Mock VPA", "SIP"];
 
 const inp = "h-9 px-3 text-sm border border-indigo-100 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 w-full font-mono";
 const btnPrimary = "inline-flex items-center gap-1.5 h-9 px-4 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition-colors shadow-sm shadow-indigo-200 shrink-0";
@@ -126,7 +126,7 @@ function ExperimentsTab() {
             </p>
           </div>
 
-          <div className="flex gap-2 pt-1 border-t border-indigo-50">
+          <div className="flex gap-2 pt-1 border-t border-indigo-50 dark:border-zinc-700 flex-wrap">
             <button type="button" onClick={apply} disabled={applying || total !== 100} className={btnPrimary}>
               {applying && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Apply weights
@@ -134,6 +134,40 @@ function ExperimentsTab() {
             <button type="button" onClick={reset} disabled={resetting} className={btnSecondary}>
               {resetting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Reset to previous
+            </button>
+            <button
+              type="button"
+              disabled={applying}
+              onClick={async () => {
+                setApplying(true);
+                try {
+                  await api.post("/qa/experiment/toggle", { name: name.trim(), enable: true });
+                  toast.success("Experiment enabled");
+                  await getState();
+                } catch (e) { toast.error(e?.response?.data?.detail || "Toggle failed"); }
+                setApplying(false);
+              }}
+              className="inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 rounded-lg disabled:opacity-40 transition-colors shrink-0"
+            >
+              {applying && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Enable
+            </button>
+            <button
+              type="button"
+              disabled={applying}
+              onClick={async () => {
+                setApplying(true);
+                try {
+                  await api.post("/qa/experiment/toggle", { name: name.trim(), enable: false });
+                  toast.success("Experiment disabled");
+                  await getState();
+                } catch (e) { toast.error(e?.response?.data?.detail || "Toggle failed"); }
+                setApplying(false);
+              }}
+              className="inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 rounded-lg disabled:opacity-40 transition-colors shrink-0"
+            >
+              {applying && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Disable
             </button>
           </div>
         </div>
@@ -337,6 +371,8 @@ function WithdrawalMockTab() {
 function VpaMockTab() {
   const [form, setForm] = useState({ phone_number: "", encrypted_vpa: "", user_name: "", vpa_type: "" });
   const [saving, setSaving] = useState(false);
+  const [delForm, setDelForm] = useState({ phone_number: "", vpa: "" });
+  const [deleting, setDeleting] = useState(false);
 
   const submit = async () => {
     if (!form.phone_number.trim()) { toast.error("Phone number is required"); return; }
@@ -383,6 +419,208 @@ function VpaMockTab() {
         <button type="button" onClick={submit} disabled={saving} className={`${btnPrimary} w-full justify-center`}>
           {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
           Set VPA Mock
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-zinc-800/60 border border-red-100 dark:border-red-900/40 rounded-xl shadow-sm p-5 space-y-4 mt-4">
+        <p className="text-[10px] font-mono uppercase tracking-widest text-red-400">Delete VPA</p>
+        <div className={field}>
+          <label htmlFor="vpa-del-phone" className={lbl}>Phone Number</label>
+          <input id="vpa-del-phone" value={delForm.phone_number} onChange={(e) => setDelForm((f) => ({ ...f, phone_number: e.target.value }))} placeholder="+919876543210" className={inp} />
+        </div>
+        <div className={field}>
+          <label htmlFor="vpa-del-vpa" className={lbl}>VPA to delete</label>
+          <input id="vpa-del-vpa" value={delForm.vpa} onChange={(e) => setDelForm((f) => ({ ...f, vpa: e.target.value }))} placeholder="e.g. user@upi" className={inp} />
+        </div>
+        <button
+          type="button"
+          disabled={deleting}
+          onClick={async () => {
+            if (!delForm.phone_number.trim()) { toast.error("Phone number is required"); return; }
+            if (!delForm.vpa.trim()) { toast.error("VPA is required"); return; }
+            setDeleting(true);
+            try {
+              await api.post("/qa/mock/vpa/delete", { phone_number: delForm.phone_number.trim(), vpa: delForm.vpa.trim() });
+              toast.success("VPA deleted");
+              setDelForm({ phone_number: "", vpa: "" });
+            } catch (e) { toast.error(e?.response?.data?.detail || "Delete failed"); }
+            setDeleting(false);
+          }}
+          className={`${btnDanger} w-full justify-center`}
+        >
+          {deleting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Delete VPA
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ---------- SIP ----------
+
+const SIP_PAUSE_DURATIONS = [
+  "ONE","TWO","THREE","FIVE","EIGHT","TEN","TWELVE","FIFTEEN","TWENTY",
+  "MONTH","TWO_MONTHS","THREE_MONTHS",
+  "WEEK","TWO_WEEKS","THREE_WEEKS","FOUR_WEEKS","DISABLE",
+];
+
+function SipTab() {
+  const [detailsForm, setDetailsForm] = useState({ phone_number: "" });
+  const [details, setDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  const [setupForm, setSetupForm] = useState({ phone_number: "", sip_type: "", mandate_amount: "" });
+  const [settingUp, setSettingUp] = useState(false);
+
+  const [pauseForm, setPauseForm] = useState({ phone_number: "", sip_type: "", action: "PAUSE", pause_duration: "" });
+  const [pausing, setPausing] = useState(false);
+
+  const [cancelForm, setCancelForm] = useState({ phone_number: "", sip_type: "" });
+  const [cancelling, setCancelling] = useState(false);
+
+  const field = "space-y-1.5";
+  const lbl = "text-[10px] font-mono uppercase tracking-widest text-indigo-400 block";
+  const card = "bg-white dark:bg-zinc-800/60 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-5 space-y-4";
+
+  const getDetails = async () => {
+    if (!detailsForm.phone_number.trim()) { toast.error("Phone number is required"); return; }
+    setLoadingDetails(true);
+    setDetails(null);
+    try {
+      const r = await api.post("/qa/sip/details", { phone_number: detailsForm.phone_number.trim() });
+      setDetails(r.data);
+    } catch (e) { toast.error(e?.response?.data?.detail || "Failed to fetch SIP details"); }
+    setLoadingDetails(false);
+  };
+
+  const setup = async () => {
+    if (!setupForm.phone_number.trim()) { toast.error("Phone number is required"); return; }
+    if (!setupForm.sip_type.trim()) { toast.error("SIP type is required"); return; }
+    const amount = Number(setupForm.mandate_amount);
+    if (!amount || amount < 10 || amount > 5000) { toast.error("Mandate amount must be between 10 and 5000"); return; }
+    setSettingUp(true);
+    try {
+      await api.post("/qa/sip/setup", { phone_number: setupForm.phone_number.trim(), sip_type: setupForm.sip_type.trim(), mandate_amount: amount });
+      toast.success("SIP set up");
+    } catch (e) { toast.error(e?.response?.data?.detail || "Setup failed"); }
+    setSettingUp(false);
+  };
+
+  const pause = async () => {
+    if (!pauseForm.phone_number.trim()) { toast.error("Phone number is required"); return; }
+    if (!pauseForm.sip_type.trim()) { toast.error("SIP type is required"); return; }
+    setPausing(true);
+    try {
+      const payload = { phone_number: pauseForm.phone_number.trim(), sip_type: pauseForm.sip_type.trim(), action: pauseForm.action };
+      if (pauseForm.action === "PAUSE" && pauseForm.pause_duration) payload.pause_duration = pauseForm.pause_duration;
+      await api.post("/qa/sip/pause", payload);
+      toast.success(`SIP ${pauseForm.action.toLowerCase()}d`);
+    } catch (e) { toast.error(e?.response?.data?.detail || "Action failed"); }
+    setPausing(false);
+  };
+
+  const cancel = async () => {
+    if (!cancelForm.phone_number.trim()) { toast.error("Phone number is required"); return; }
+    if (!cancelForm.sip_type.trim()) { toast.error("SIP type is required"); return; }
+    setCancelling(true);
+    try {
+      await api.post("/qa/sip/cancel", { phone_number: cancelForm.phone_number.trim(), sip_type: cancelForm.sip_type.trim() });
+      toast.success("SIP cancelled");
+      setCancelForm({ phone_number: "", sip_type: "" });
+    } catch (e) { toast.error(e?.response?.data?.detail || "Cancel failed"); }
+    setCancelling(false);
+  };
+
+  return (
+    <div className="space-y-6 max-w-md">
+      {/* Details */}
+      <div className={card}>
+        <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400">SIP Details</p>
+        <div className={field}>
+          <label htmlFor="sip-details-phone" className={lbl}>Phone Number</label>
+          <div className="flex gap-2">
+            <input id="sip-details-phone" value={detailsForm.phone_number} onChange={(e) => { setDetailsForm({ phone_number: e.target.value }); setDetails(null); }} onKeyDown={(e) => { if (e.key === "Enter") getDetails(); }} placeholder="+919876543210" className={`flex-1 ${inp}`} />
+            <button type="button" onClick={getDetails} disabled={loadingDetails || !detailsForm.phone_number.trim()} className={btnSecondary}>
+              {loadingDetails && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              Fetch
+            </button>
+          </div>
+        </div>
+        {details && (
+          <pre className="bg-indigo-50/60 dark:bg-zinc-900/60 border border-indigo-100 dark:border-zinc-700 rounded-xl p-4 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-48">
+            {JSON.stringify(details, null, 2)}
+          </pre>
+        )}
+      </div>
+
+      {/* Setup */}
+      <div className={card}>
+        <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400">Setup / Update SIP</p>
+        <div className={field}>
+          <label htmlFor="sip-setup-phone" className={lbl}>Phone Number</label>
+          <input id="sip-setup-phone" value={setupForm.phone_number} onChange={(e) => setSetupForm((f) => ({ ...f, phone_number: e.target.value }))} placeholder="+919876543210" className={inp} />
+        </div>
+        <div className={field}>
+          <label htmlFor="sip-setup-type" className={lbl}>SIP Type</label>
+          <input id="sip-setup-type" value={setupForm.sip_type} onChange={(e) => setSetupForm((f) => ({ ...f, sip_type: e.target.value }))} placeholder="e.g. DAILY_SAVINGS" className={inp} />
+        </div>
+        <div className={field}>
+          <label htmlFor="sip-setup-amount" className={lbl}>Mandate Amount <span className="normal-case font-sans text-zinc-400">(₹10–5000)</span></label>
+          <input id="sip-setup-amount" type="number" min={10} max={5000} value={setupForm.mandate_amount} onChange={(e) => setSetupForm((f) => ({ ...f, mandate_amount: e.target.value }))} placeholder="e.g. 100" className={inp} />
+        </div>
+        <button type="button" onClick={setup} disabled={settingUp} className={`${btnPrimary} w-full justify-center`}>
+          {settingUp && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Setup SIP
+        </button>
+      </div>
+
+      {/* Pause / Resume */}
+      <div className={card}>
+        <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400">Pause / Resume SIP</p>
+        <div className={field}>
+          <label htmlFor="sip-pause-phone" className={lbl}>Phone Number</label>
+          <input id="sip-pause-phone" value={pauseForm.phone_number} onChange={(e) => setPauseForm((f) => ({ ...f, phone_number: e.target.value }))} placeholder="+919876543210" className={inp} />
+        </div>
+        <div className={field}>
+          <label htmlFor="sip-pause-type" className={lbl}>SIP Type</label>
+          <input id="sip-pause-type" value={pauseForm.sip_type} onChange={(e) => setPauseForm((f) => ({ ...f, sip_type: e.target.value }))} placeholder="e.g. DAILY_SAVINGS" className={inp} />
+        </div>
+        <div className={field}>
+          <label htmlFor="sip-pause-action" className={lbl}>Action</label>
+          <select id="sip-pause-action" value={pauseForm.action} onChange={(e) => setPauseForm((f) => ({ ...f, action: e.target.value, pause_duration: "" }))} className={inp}>
+            <option value="PAUSE">PAUSE</option>
+            <option value="RESUME">RESUME</option>
+          </select>
+        </div>
+        {pauseForm.action === "PAUSE" && (
+          <div className={field}>
+            <label htmlFor="sip-pause-dur" className={lbl}>Pause Duration <span className="normal-case font-sans text-zinc-400">(optional)</span></label>
+            <select id="sip-pause-dur" value={pauseForm.pause_duration} onChange={(e) => setPauseForm((f) => ({ ...f, pause_duration: e.target.value }))} className={inp}>
+              <option value="">No duration specified</option>
+              {SIP_PAUSE_DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+        )}
+        <button type="button" onClick={pause} disabled={pausing} className={`${btnPrimary} w-full justify-center`}>
+          {pausing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {pauseForm.action === "PAUSE" ? "Pause SIP" : "Resume SIP"}
+        </button>
+      </div>
+
+      {/* Cancel */}
+      <div className="bg-white dark:bg-zinc-800/60 border border-red-100 dark:border-red-900/40 rounded-xl shadow-sm p-5 space-y-4">
+        <p className="text-[10px] font-mono uppercase tracking-widest text-red-400">Cancel SIP</p>
+        <div className={field}>
+          <label htmlFor="sip-cancel-phone" className={lbl}>Phone Number</label>
+          <input id="sip-cancel-phone" value={cancelForm.phone_number} onChange={(e) => setCancelForm((f) => ({ ...f, phone_number: e.target.value }))} placeholder="+919876543210" className={inp} />
+        </div>
+        <div className={field}>
+          <label htmlFor="sip-cancel-type" className={lbl}>SIP Type</label>
+          <input id="sip-cancel-type" value={cancelForm.sip_type} onChange={(e) => setCancelForm((f) => ({ ...f, sip_type: e.target.value }))} placeholder="e.g. DAILY_SAVINGS" className={inp} />
+        </div>
+        <button type="button" onClick={cancel} disabled={cancelling} className={`${btnDanger} w-full justify-center`}>
+          {cancelling && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          Cancel SIP
         </button>
       </div>
     </div>
@@ -607,6 +845,7 @@ export default function QAActionsPage() {
             {tab === "Redis" && <RedisTab />}
             {tab === "Withdrawal Mock" && <WithdrawalMockTab />}
             {tab === "Mock VPA" && <VpaMockTab />}
+            {tab === "SIP" && <SipTab />}
           </>
         )}
       </div>
