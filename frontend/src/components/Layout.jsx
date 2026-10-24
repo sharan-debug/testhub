@@ -979,10 +979,14 @@ export default function Layout() {
 					<button
 						type="button"
 						data-testid="open-chat-button"
-						onClick={() => setChatOpen(true)}
-						className="group w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-colors duration-200 ease-in-out border-l-2 text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 border-transparent"
+						onClick={() => setChatOpen((o) => !o)}
+						className={`group w-full flex items-center gap-2.5 px-3 py-2 text-sm rounded-lg transition-all duration-200 ease-in-out border-l-2 ${
+							chatOpen
+								? "bg-red-50/80 dark:bg-red-950/40 text-red-600 dark:text-red-400 border-red-500 dark:border-red-400 font-medium"
+								: "text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100 border-transparent"
+						}`}
 					>
-						<Sparkles className="w-4 h-4 text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300 transition-colors duration-200" />
+						<Sparkles className={`w-4 h-4 transition-colors duration-200 ${chatOpen ? "text-red-500 dark:text-red-400" : "text-slate-400 dark:text-zinc-500 group-hover:text-slate-600 dark:group-hover:text-zinc-300"}`} />
 						Ask the Agent
 					</button>
 
@@ -1110,16 +1114,18 @@ export default function Layout() {
 				)}
 			</aside>
 
-			{/* Main content */}
-			<main className="flex-1 min-h-screen bg-slate-50/50 dark:bg-zinc-950 overflow-x-hidden overflow-y-auto transition-colors duration-200 ease-in-out relative">
-				<LightBackground />
-				<DarkBackground />
-				<div className="relative z-[1]">
-					<Outlet context={{ openChat: () => setChatOpen(true) }} />
-				</div>
-			</main>
+			{/* Main content + agent panel — side-by-side when chat is open */}
+			<div className="flex flex-1 min-w-0">
+				<main className="flex-1 min-h-screen min-w-0 bg-slate-50/50 dark:bg-zinc-950 overflow-x-hidden overflow-y-auto transition-all duration-300 ease-in-out relative">
+					<LightBackground />
+					<DarkBackground />
+					<div className="relative z-[1]">
+						<Outlet context={{ openChat: () => setChatOpen(true) }} />
+					</div>
+				</main>
 
-			<ChatAgent open={chatOpen} onOpenChange={setChatOpen} />
+				{chatOpen && <ChatAgent open={chatOpen} onOpenChange={setChatOpen} />}
+			</div>
 		</div>
 	);
 }

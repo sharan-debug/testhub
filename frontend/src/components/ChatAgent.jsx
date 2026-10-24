@@ -143,8 +143,8 @@ export default function ChatAgent({ open, onOpenChange }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-[480px] bg-[#FAFAFA] border-l border-zinc-200 flex flex-col z-50 shadow-xl">
-      <div className="p-5 border-b border-zinc-200 bg-white flex items-start justify-between">
+    <div className="w-[420px] shrink-0 sticky top-0 h-screen bg-[#FAFAFA] dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden">
+      <div className="p-5 border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 font-heading font-black text-lg tracking-tight">
             <Sparkles className="w-4 h-4 text-blue-600" />
@@ -162,7 +162,7 @@ export default function ChatAgent({ open, onOpenChange }) {
         </button>
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-5" data-testid="chat-panel">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-5 space-y-5 bg-[#FAFAFA] dark:bg-zinc-900" data-testid="chat-panel">
         {messages.length === 0 && (
           <div className="space-y-3">
             <p className="text-sm text-zinc-500">Try asking:</p>
@@ -289,7 +289,7 @@ export default function ChatAgent({ open, onOpenChange }) {
         ))}
       </div>
 
-      <div className="p-4 border-t border-zinc-200 bg-white">
+      <div className="p-4 border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
         <div className="flex gap-2">
           <input
             data-testid="chat-input"
@@ -298,7 +298,7 @@ export default function ChatAgent({ open, onOpenChange }) {
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
             placeholder="Ask about features, mocks, APIs…"
             disabled={streaming}
-            className="flex-1 h-10 px-3 text-sm border border-zinc-200 rounded-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            className="flex-1 h-10 px-3 text-sm border border-zinc-200 dark:border-zinc-700 rounded-sm bg-white dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           />
           <button
             type="button"

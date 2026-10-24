@@ -427,3 +427,136 @@ async def set_vpa_mock(payload: VpaMock, request: Request):
         user.email, payload.phone_number, payload.vpa_type,
     )
     return result
+
+
+# ---------- Experiment Toggle ----------
+
+class ExperimentToggle(BaseModel):
+    name: str
+    enable: bool
+
+
+@router.post("/experiment/toggle")
+async def toggle_experiment(payload: ExperimentToggle, request: Request):
+    user = await require_role("editor")(request)
+    if not _url_configured():
+        raise HTTPException(status_code=503, detail="QA utility not configured")
+    result = await _qa(
+        "POST", "/v1/api/experiment/toggle",
+        user_id=user.user_id,
+        params={"experimentName": payload.name, "enable": str(payload.enable).lower()},
+    )
+    logger.info("QA: %s toggled experiment '%s' enable=%s", user.email, payload.name, payload.enable)
+    return result
+
+
+# ---------- VPA Delete ----------
+
+class VpaDelete(BaseModel):
+    phone_number: str
+    vpa: str
+
+
+@router.post("/mock/vpa/delete")
+async def delete_vpa_mock(payload: VpaDelete, request: Request):
+    user = await require_role("editor")(request)
+    if not _url_configured():
+        raise HTTPException(status_code=503, detail="QA utility not configured")
+    body = {"phoneNumber": payload.phone_number, "vpa": payload.vpa}
+    result = await _qa("POST", "/v1/api/mock-vpa/delete-vpa", user_id=user.user_id, body=body)
+    logger.info("QA: %s deleted VPA mock phone=%s vpa=%s", user.email, payload.phone_number, payload.vpa)
+    return result
+
+
+# ---------- SIP ----------
+
+class SipDetailsIn(BaseModel):
+    phone_number: str
+
+
+class SipSetupIn(BaseModel):
+    phone_number: str
+    sip_type: str
+    mandate_amount: int
+
+
+class SipPauseIn(BaseModel):
+    phone_number: str
+    sip_type: str
+    action: str
+    pause_duration: Optional[str] = None
+
+
+class SipCancelIn(BaseModel):
+    phone_number: str
+    sip_type: str
+
+
+_SIP_PAUSE_DURATIONS = {
+    "ONE", "TWO", "THREE", "FIVE", "EIGHT", "TEN", "TWELVE", "FIFTEEN", "TWENTY",
+    "MONTH", "TWO_MONTHS", "THREE_MONTHS",
+    "WEEK", "TWO_WEEKS", "THREE_WEEKS", "FOUR_WEEKS",
+    "DISABLE",
+}
+
+
+@router.post("/sip/details")
+async def get_sip_details(payload: SipDetailsIn, request: Request):
+    user = await get_current_user(request)
+    if not _url_configured():
+        raise HTTPException(status_code=503, detail="QA utility not configured")
+    return await _qa("POST", "/v1/api/sip/details", user_id=user.user_id, body={"phoneNumber": payload.phone_number})
+
+
+@router.post("/sip/setup")
+async def setup_sip(payload: SipSetupIn, request: Request):
+    user = await require_role("editor")(request)
+    if not _url_configured():
+        raise HTTPException(status_code=503, detail="QA utility not configured")
+    if not (10 <= payload.mandate_amount <= 5000):
+        raise HTTPException(status_code=400, detail="mandateAmount must be between 10 and 5000")
+    body = {
+        "phoneNumber": payload.phone_number,
+        "sipType": payload.sip_type,
+        "mandateAmount": payload.mandate_amount,
+    }
+    result = await _qa("POST", "/v1/api/sip/setup", user_id=user.user_id, body=body)
+    logger.info("QA: %s setup SIP phone=%s type=%s amount=%s", user.email, payload.phone_number, payload.sip_type, payload.mandate_amount)
+    return result
+
+
+@router.post("/sip/pause")
+async def pause_sip(payload: SipPauseIn, request: Request):
+    user = await require_role("editor")(request)
+    if not _url_configured():
+        raise HTTPException(status_code=503, detail="QA utility not configured")
+    action = payload.action.upper()
+    if action not in {"PAUSE", "RESUME"}:
+        raise HTTPException(status_code=400, detail="action must be PAUSE or RESUME")
+    body: dict = {
+        "phoneNumber": payload.phone_number,
+        "sipType": payload.sip_type,
+        "action": action,
+    }
+    if payload.pause_duration:
+        dur = payload.pause_duration.upper()
+        if dur not in _SIP_PAUSE_DURATIONS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid pause_duration. Valid values: {sorted(_SIP_PAUSE_DURATIONS)}",
+            )
+        body["pauseDuration"] = dur
+    result = await _qa("POST", "/v1/api/sip/pause", user_id=user.user_id, body=body)
+    logger.info("QA: %s %s SIP phone=%s type=%s", user.email, action, payload.phone_number, payload.sip_type)
+    return result
+
+
+@router.post("/sip/cancel")
+async def cancel_sip(payload: SipCancelIn, request: Request):
+    user = await require_role("editor")(request)
+    if not _url_configured():
+        raise HTTPException(status_code=503, detail="QA utility not configured")
+    body = {"phoneNumber": payload.phone_number, "sipType": payload.sip_type}
+    result = await _qa("POST", "/v1/api/sip/cancel", user_id=user.user_id, body=body)
+    logger.info("QA: %s cancelled SIP phone=%s type=%s", user.email, payload.phone_number, payload.sip_type)
+    return result
