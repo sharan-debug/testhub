@@ -176,7 +176,7 @@ export default function ChatAgent({ open, onOpenChange }) {
                 type="button"
                 data-testid={`suggested-question-${i}`}
                 onClick={() => setInput(s)}
-                className="block w-full text-left text-sm p-3 bg-white border border-zinc-200 rounded-sm hover:border-zinc-400 transition-colors"
+                className="block w-full text-left text-sm p-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-sm hover:border-zinc-400 dark:hover:border-zinc-500 text-zinc-700 dark:text-zinc-300 transition-colors"
               >
                 {s}
               </button>
@@ -196,7 +196,7 @@ export default function ChatAgent({ open, onOpenChange }) {
                 className={`chat-markdown text-sm px-3.5 py-2.5 rounded-sm ${
                   m.role === "user"
                     ? "bg-black text-white"
-                    : "bg-white border border-zinc-200 text-zinc-900"
+                    : "bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 text-zinc-900 dark:text-zinc-100"
                 }`}
                 data-testid={`chat-msg-${m.role}`}
               >

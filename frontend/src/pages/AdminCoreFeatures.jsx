@@ -75,15 +75,15 @@ export default function AdminCoreFeatures() {
     setSaving(false);
   };
 
-  const inp = "w-full h-9 px-3 text-sm border border-indigo-100 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400";
+  const inp = "w-full h-9 px-3 text-sm border border-indigo-100 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-zinc-100 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-400";
 
   return (
     <div className="p-6 md:p-8 max-w-3xl">
       <div className="flex items-start justify-between mb-6">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Admin</p>
-          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900">Core Features</h1>
-          <p className="text-sm text-zinc-400 mt-1">Top-level groupings that every feature must belong to.</p>
+          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900 dark:text-zinc-100">Core Features</h1>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1">Top-level groupings that every feature must belong to.</p>
         </div>
         {!adding && (
           <button
@@ -98,7 +98,7 @@ export default function AdminCoreFeatures() {
       </div>
 
       {adding && (
-        <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-4 mb-4">
+        <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-4 mb-4">
           <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-3">New Core Feature</p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
             <div>
@@ -138,7 +138,7 @@ export default function AdminCoreFeatures() {
             <button
               type="button"
               onClick={() => { setAdding(false); setNewName(""); setNewDesc(""); }}
-              className="h-8 px-3 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600"
+              className="h-8 px-3 text-sm border border-indigo-200 dark:border-zinc-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300"
             >
               Cancel
             </button>
@@ -146,8 +146,8 @@ export default function AdminCoreFeatures() {
         </div>
       )}
 
-      <div className="bg-white border border-indigo-100 rounded-xl shadow-sm overflow-hidden">
-        <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-mono uppercase tracking-widest text-indigo-400 bg-indigo-50/50 border-b border-indigo-100">
+      <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm overflow-hidden">
+        <div className="grid grid-cols-12 px-4 py-2.5 text-[11px] font-mono uppercase tracking-widest text-indigo-400 bg-indigo-50/50 dark:bg-zinc-700/40 border-b border-indigo-100 dark:border-zinc-700">
           <div className="col-span-4">Name</div>
           <div className="col-span-6">Description</div>
           <div className="col-span-2" />
@@ -159,9 +159,9 @@ export default function AdminCoreFeatures() {
           <div className="p-8 text-center text-sm text-zinc-400">No core features yet. Add one above.</div>
         )}
 
-        <div className="divide-y divide-indigo-50">
+        <div className="divide-y divide-indigo-50 dark:divide-zinc-700">
           {coreFeatures.map((cf) => (
-            <div key={cf.id} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-indigo-50/30 transition-colors" data-testid={`cf-row-${cf.id}`}>
+            <div key={cf.id} className="grid grid-cols-12 px-4 py-3 items-center hover:bg-indigo-50/30 dark:hover:bg-zinc-700/30 transition-colors" data-testid={`cf-row-${cf.id}`}>
               {editId === cf.id ? (
                 <>
                   <div className="col-span-4 pr-2">
@@ -193,7 +193,7 @@ export default function AdminCoreFeatures() {
                     <button
                       type="button"
                       onClick={cancelEdit}
-                      className="h-8 px-2 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600"
+                      className="h-8 px-2 text-sm border border-indigo-200 dark:border-zinc-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -201,14 +201,14 @@ export default function AdminCoreFeatures() {
                 </>
               ) : (
                 <>
-                  <div className="col-span-4 font-medium text-sm truncate text-zinc-800">{cf.name}</div>
-                  <div className="col-span-6 text-xs text-zinc-400 truncate">{cf.description || "—"}</div>
+                  <div className="col-span-4 font-medium text-sm truncate text-zinc-800 dark:text-zinc-100">{cf.name}</div>
+                  <div className="col-span-6 text-xs text-zinc-400 dark:text-zinc-500 truncate">{cf.description || "—"}</div>
                   <div className="col-span-2 flex justify-end">
                     <button
                       type="button"
                       data-testid={`edit-cf-${cf.id}`}
                       onClick={() => startEdit(cf)}
-                      className="h-8 px-2 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600"
+                      className="h-8 px-2 text-sm border border-indigo-200 dark:border-zinc-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-400"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>

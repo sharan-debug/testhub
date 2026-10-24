@@ -69,7 +69,7 @@ export default function ImportPage() {
     return (
       <div className="p-6 md:p-8 max-w-3xl">
         <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Bulk</p>
-        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-6 text-zinc-900">Import complete</h1>
+        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-6 text-zinc-900 dark:text-zinc-100">Import complete</h1>
         <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-6" data-testid="import-result">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
@@ -110,7 +110,7 @@ export default function ImportPage() {
           <ArrowLeft className="w-3 h-3" /> back
         </button>
         <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Bulk</p>
-        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2 text-zinc-900">Preview</h1>
+        <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2 text-zinc-900 dark:text-zinc-100">Preview</h1>
         <p className="text-sm text-zinc-400 mb-6">{file.name}</p>
 
         <div className="flex gap-4 mb-5 flex-wrap">
@@ -183,25 +183,25 @@ export default function ImportPage() {
   return (
     <div className="p-6 md:p-8 max-w-3xl">
       <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Bulk</p>
-      <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2 text-zinc-900">Import features</h1>
-      <p className="text-sm text-zinc-500 mb-6">Upload a CSV or Excel sheet to bulk-load features. You'll see a preview before anything is saved.</p>
+      <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight mb-2 text-zinc-900 dark:text-zinc-100">Import features</h1>
+      <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">Upload a CSV or Excel sheet to bulk-load features. You'll see a preview before anything is saved.</p>
 
-      <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-6 mb-4">
+      <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-6 mb-4">
         <label
           htmlFor="file-upload"
-          className="block border-2 border-dashed border-indigo-200 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-400 hover:bg-indigo-50/30 transition-colors"
+          className="block border-2 border-dashed border-indigo-200 dark:border-zinc-600 rounded-xl p-10 text-center cursor-pointer hover:border-indigo-400 dark:hover:border-zinc-400 hover:bg-indigo-50/30 dark:hover:bg-zinc-700/30 transition-colors"
           data-testid="upload-dropzone"
         >
-          <FileSpreadsheet className="w-8 h-8 text-indigo-300 mx-auto mb-3" />
+          <FileSpreadsheet className="w-8 h-8 text-indigo-300 dark:text-indigo-400 mx-auto mb-3" />
           {file ? (
             <div>
-              <p className="text-sm font-medium text-zinc-700">{file.name}</p>
-              <p className="text-xs text-zinc-400 mt-1">{(file.size / 1024).toFixed(1)} KB — click to change</p>
+              <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{file.name}</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">{(file.size / 1024).toFixed(1)} KB — click to change</p>
             </div>
           ) : (
             <div>
-              <p className="text-sm font-medium text-zinc-600">Drop a .csv, .xlsx or .xls file here, or click to browse</p>
-              <p className="text-xs text-zinc-400 mt-1">Max 10 MB</p>
+              <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">Drop a .csv, .xlsx or .xls file here, or click to browse</p>
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-1">Max 10 MB</p>
             </div>
           )}
           <input
@@ -215,7 +215,7 @@ export default function ImportPage() {
         </label>
 
         <div className="mt-4 flex justify-end gap-2">
-          <button type="button" onClick={() => navigate("/features")} className="h-9 px-4 text-sm border border-indigo-200 rounded-lg hover:bg-indigo-50 text-zinc-600">Cancel</button>
+          <button type="button" onClick={() => navigate("/features")} className="h-9 px-4 text-sm border border-indigo-200 dark:border-zinc-600 rounded-lg hover:bg-indigo-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300">Cancel</button>
           <button
             data-testid="upload-submit-btn"
             type="button"
@@ -228,21 +228,21 @@ export default function ImportPage() {
         </div>
       </div>
 
-      <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5">
+      <div className="bg-indigo-50/50 dark:bg-zinc-800/60 border border-indigo-100 dark:border-zinc-700 rounded-xl p-5">
         <div className="flex items-center justify-between mb-2">
-          <h3 className="font-heading font-black text-xs tracking-widest uppercase text-indigo-400">Expected columns (case-insensitive)</h3>
+          <h3 className="font-heading font-black text-xs tracking-widest uppercase text-indigo-500 dark:text-indigo-400">Expected columns (case-insensitive)</h3>
           <a
             href="/sample_import.csv"
             download="sample_import.csv"
-            className="text-xs text-indigo-500 hover:text-indigo-700 underline underline-offset-2 font-mono"
+            className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 underline underline-offset-2 font-mono"
           >Download sample CSV</a>
         </div>
-        <ul className="text-xs text-zinc-500 space-y-1 font-mono">
-          <li>• name <span className="text-zinc-400">(required)</span></li>
-          <li>• description, owner, tags <span className="text-zinc-400">(comma-separated)</span></li>
-          <li>• test_data, test_steps, mocking_steps <span className="text-zinc-400">(free text)</span></li>
-          <li>• api <span className="text-zinc-400">(cURL string or newline-delimited cURL commands)</span></li>
-          <li>• mongo_collections, redis_keys, experiments <span className="text-zinc-400">(JSON array or newline-delimited)</span></li>
+        <ul className="text-xs text-zinc-600 dark:text-zinc-300 space-y-1 font-mono">
+          <li>• name <span className="text-zinc-400 dark:text-zinc-500">(required)</span></li>
+          <li>• description, owner, tags <span className="text-zinc-400 dark:text-zinc-500">(comma-separated)</span></li>
+          <li>• test_data, test_steps, mocking_steps <span className="text-zinc-400 dark:text-zinc-500">(free text)</span></li>
+          <li>• api <span className="text-zinc-400 dark:text-zinc-500">(cURL string or newline-delimited cURL commands)</span></li>
+          <li>• mongo_collections, redis_keys, experiments <span className="text-zinc-400 dark:text-zinc-500">(JSON array or newline-delimited)</span></li>
         </ul>
       </div>
     </div>
