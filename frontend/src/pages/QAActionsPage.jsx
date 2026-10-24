@@ -5,10 +5,10 @@ import { api } from "../lib/api";
 
 const TABS = ["Experiments", "Redis", "Withdrawal Mock", "Mock VPA", "SIP"];
 
-const inp = "h-9 px-3 text-sm border border-indigo-100 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 w-full font-mono";
+const inp = "h-9 px-3 text-sm border border-indigo-100 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-zinc-100 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-full font-mono";
 const btnPrimary = "inline-flex items-center gap-1.5 h-9 px-4 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg disabled:opacity-50 transition-colors shadow-sm shadow-indigo-200 shrink-0";
-const btnSecondary = "inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-indigo-200 bg-white hover:bg-indigo-50 text-zinc-600 rounded-lg disabled:opacity-40 transition-colors shrink-0";
-const btnDanger = "inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-red-200 bg-white hover:bg-red-50 text-red-600 rounded-lg disabled:opacity-40 transition-colors shrink-0";
+const btnSecondary = "inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-indigo-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg disabled:opacity-40 transition-colors shrink-0";
+const btnDanger = "inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-red-200 dark:border-red-800/60 bg-white dark:bg-zinc-800 hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400 rounded-lg disabled:opacity-40 transition-colors shrink-0";
 
 // ---------- Experiments ----------
 
@@ -82,9 +82,9 @@ function ExperimentsTab() {
       </div>
 
       {state && (
-        <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-5 space-y-5">
+        <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-5 space-y-5">
           <div className="flex items-center gap-3">
-            <p className="text-sm font-mono font-semibold text-zinc-900 flex-1">{state.name || name}</p>
+            <p className="text-sm font-mono font-semibold text-zinc-900 dark:text-zinc-100 flex-1">{state.name || name}</p>
             {state.enabled !== undefined && (
               <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full ${state.enabled ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-zinc-100 text-zinc-500 border border-zinc-200"}`}>
                 {state.enabled ? "enabled" : "disabled"}
@@ -97,14 +97,14 @@ function ExperimentsTab() {
             <div className="space-y-2">
               {Object.entries(weights).map(([variantName, weight]) => (
                 <div key={variantName} className="flex items-center gap-3">
-                  <span className="text-sm font-mono text-zinc-700 flex-1 min-w-0 truncate">{variantName}</span>
+                  <span className="text-sm font-mono text-zinc-700 dark:text-zinc-300 flex-1 min-w-0 truncate">{variantName}</span>
                   <input
                     type="number"
                     min={0}
                     max={100}
                     value={weight}
                     onChange={(e) => setWeights((w) => ({ ...w, [variantName]: e.target.value }))}
-                    className="w-20 h-8 px-2 text-sm text-center border border-indigo-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                    className="w-20 h-8 px-2 text-sm text-center border border-indigo-100 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-indigo-400"
                   />
                   <span className="text-sm text-zinc-400 w-4">%</span>
                   <button
@@ -147,7 +147,7 @@ function ExperimentsTab() {
                 } catch (e) { toast.error(e?.response?.data?.detail || "Toggle failed"); }
                 setApplying(false);
               }}
-              className="inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-emerald-200 bg-white hover:bg-emerald-50 text-emerald-700 rounded-lg disabled:opacity-40 transition-colors shrink-0"
+              className="inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-emerald-200 dark:border-emerald-800/60 bg-white dark:bg-zinc-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 rounded-lg disabled:opacity-40 transition-colors shrink-0"
             >
               {applying && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Enable
@@ -164,7 +164,7 @@ function ExperimentsTab() {
                 } catch (e) { toast.error(e?.response?.data?.detail || "Toggle failed"); }
                 setApplying(false);
               }}
-              className="inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-600 rounded-lg disabled:opacity-40 transition-colors shrink-0"
+              className="inline-flex items-center gap-1.5 h-9 px-4 text-sm border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg disabled:opacity-40 transition-colors shrink-0"
             >
               {applying && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               Disable
@@ -236,7 +236,7 @@ function RedisTab() {
           onChange={(e) => { setKey(e.target.value); setResult(null); }}
           onKeyDown={(e) => { if (e.key === "Enter") read(); }}
           placeholder="Redis key e.g. r:jar:cancellation:{user_id}"
-          className="flex-1 min-w-0 h-9 px-3 text-sm border border-indigo-100 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
+          className="flex-1 min-w-0 h-9 px-3 text-sm border border-indigo-100 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-zinc-100 dark:placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 font-mono"
         />
         <button type="button" onClick={read} disabled={loading || !key.trim()} className={btnSecondary}>
           {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -252,20 +252,20 @@ function RedisTab() {
       </div>
 
       {result !== null && (
-        <pre className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-48">
+        <pre className="bg-indigo-50/60 dark:bg-zinc-900/60 border border-indigo-100 dark:border-zinc-700 rounded-xl p-4 text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all max-h-48 dark:text-zinc-300">
           {typeof result === "object" ? JSON.stringify(result, null, 2) : String(result?.value ?? result)}
         </pre>
       )}
 
       {showSet && (
-        <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-4 space-y-3">
+        <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-4 space-y-3">
           <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400">Set value</p>
           <textarea
             value={form.value}
             onChange={(e) => setForm((f) => ({ ...f, value: e.target.value }))}
             placeholder="Value to store…"
             rows={3}
-            className="w-full px-3 py-2 text-sm font-mono border border-indigo-100 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className="w-full px-3 py-2 text-sm font-mono border border-indigo-100 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-zinc-100 dark:placeholder-zinc-400 resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400"
           />
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs text-zinc-500 shrink-0">TTL:</span>
@@ -274,12 +274,12 @@ function RedisTab() {
               min={1}
               value={form.ttl}
               onChange={(e) => setForm((f) => ({ ...f, ttl: e.target.value }))}
-              className="w-20 h-8 px-2 text-sm border border-indigo-100 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="w-20 h-8 px-2 text-sm border border-indigo-100 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-indigo-400"
             />
             <select
               value={form.ttl_unit}
               onChange={(e) => setForm((f) => ({ ...f, ttl_unit: e.target.value }))}
-              className="h-8 px-2 text-sm border border-indigo-100 rounded-lg focus:outline-none focus:ring-1 focus:ring-indigo-400"
+              className="h-8 px-2 text-sm border border-indigo-100 dark:border-zinc-600 rounded-lg bg-white dark:bg-zinc-700 dark:text-zinc-100 focus:outline-none focus:ring-1 focus:ring-indigo-400"
             >
               {["HOUR", "MINUTE", "DAY", "SECOND"].map((u) => <option key={u}>{u}</option>)}
             </select>
@@ -327,7 +327,7 @@ function WithdrawalMockTab() {
 
   return (
     <div className="max-w-md">
-      <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-5 space-y-4">
+      <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-5 space-y-4">
         <div className={field}>
           <label htmlFor="wm-phone" className={lbl}>Phone Number</label>
           <input id="wm-phone" value={form.phone_number} onChange={(e) => setForm((f) => ({ ...f, phone_number: e.target.value }))} placeholder="+919876543210" className={inp} />
@@ -399,7 +399,7 @@ function VpaMockTab() {
 
   return (
     <div className="max-w-md">
-      <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-5 space-y-4">
+      <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-5 space-y-4">
         <div className={field}>
           <label htmlFor="vpa-phone" className={lbl}>Phone Number</label>
           <input id="vpa-phone" value={form.phone_number} onChange={(e) => setForm((f) => ({ ...f, phone_number: e.target.value }))} placeholder="+919876543210" className={inp} />
@@ -816,7 +816,7 @@ export default function QAActionsPage() {
         )}
 
         {/* Tab bar */}
-        <div className="flex gap-0 border-b border-indigo-100 mb-6">
+        <div className="flex gap-0 border-b border-indigo-100 dark:border-zinc-700 mb-6">
           {TABS.map((t) => (
             <button
               key={t}

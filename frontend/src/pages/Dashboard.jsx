@@ -30,17 +30,17 @@ export default function Dashboard() {
       <div className="flex items-start justify-between mb-8">
         <div>
           <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400 mb-2">Overview</p>
-          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900">Team Test Knowledge</h1>
-          <p className="text-sm text-zinc-500 mt-2">Your team's central QA hub — test data, mocks, APIs, Redis, Mongo and experiments.</p>
+          <h1 className="text-3xl md:text-4xl font-heading font-black tracking-tight text-zinc-900 dark:text-zinc-100">Team Test Knowledge</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-2">Your team's central QA hub — test data, mocks, APIs, Redis, Mongo and experiments.</p>
         </div>
         <div className="flex gap-2">
           <button
             type="button"
             data-testid="dashboard-ask-agent"
             onClick={openChat}
-            className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-indigo-200 bg-white hover:bg-indigo-50 text-zinc-600 rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 h-9 px-3 text-sm border border-indigo-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 hover:bg-indigo-50 dark:hover:bg-zinc-700 text-zinc-600 dark:text-zinc-300 rounded-lg transition-colors"
           >
-            <Sparkles className="w-4 h-4 text-indigo-500" /> Ask the Agent
+            <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" /> Ask the Agent
           </button>
           <button
             type="button"
@@ -55,14 +55,14 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-10">
         {statCards.map((s) => (
-          <div key={s.label} className="bg-white border border-indigo-100 rounded-xl shadow-sm p-5" data-testid={`stat-${s.label.toLowerCase()}`}>
+          <div key={s.label} className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-5" data-testid={`stat-${s.label.toLowerCase()}`}>
             <div className="flex items-start justify-between mb-4">
               <p className="text-[10px] font-mono uppercase tracking-widest text-indigo-400">{s.label}</p>
               <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${s.bg} ${s.text}`}>
                 <s.icon className="w-4 h-4" />
               </div>
             </div>
-            <p className="text-4xl font-heading font-black tracking-tight text-zinc-900">{s.value}</p>
+            <p className="text-4xl font-heading font-black tracking-tight text-zinc-900 dark:text-zinc-100">{s.value}</p>
           </div>
         ))}
       </div>
@@ -70,10 +70,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-heading font-black text-lg tracking-tight text-zinc-900">Recent features</h2>
+            <h2 className="font-heading font-black text-lg tracking-tight text-zinc-900 dark:text-zinc-100">Recent features</h2>
             <Link to="/features" data-testid="view-all-features" className="text-xs text-indigo-600 hover:underline font-mono">view all →</Link>
           </div>
-          <div className="bg-white border border-indigo-100 rounded-xl shadow-sm divide-y divide-indigo-50 overflow-hidden">
+          <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm divide-y divide-indigo-50 dark:divide-zinc-700 overflow-hidden">
             {features.length === 0 && (
               <div className="p-8 text-center">
                 <p className="text-sm text-zinc-500 mb-4">No features yet. Add your first, or import a sheet.</p>
@@ -98,11 +98,11 @@ export default function Dashboard() {
               </div>
             )}
             {features.map((f) => (
-              <Link key={f.id} to={`/features/${f.id}`} className="block p-4 hover:bg-indigo-50/40 transition-colors" data-testid={`recent-feature-${f.id}`}>
+              <Link key={f.id} to={`/features/${f.id}`} className="block p-4 hover:bg-indigo-50/40 dark:hover:bg-zinc-700/30 transition-colors" data-testid={`recent-feature-${f.id}`}>
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
-                    <h3 className="font-medium text-sm mb-0.5 truncate text-zinc-800">{f.name}</h3>
-                    <p className="text-xs text-zinc-400 truncate">{f.description || "No description"}</p>
+                    <h3 className="font-medium text-sm mb-0.5 truncate text-zinc-800 dark:text-zinc-100">{f.name}</h3>
+                    <p className="text-xs text-zinc-400 dark:text-zinc-500 truncate">{f.description || "No description"}</p>
                   </div>
                   <div className="flex gap-1 shrink-0">
                     {(f.tags || []).slice(0, 3).map((t) => (
@@ -116,18 +116,18 @@ export default function Dashboard() {
         </div>
 
         <div>
-          <h2 className="font-heading font-black text-lg tracking-tight mb-3 flex items-center gap-2 text-zinc-900">
+          <h2 className="font-heading font-black text-lg tracking-tight mb-3 flex items-center gap-2 text-zinc-900 dark:text-zinc-100">
             <Activity className="w-4 h-4 text-indigo-400" /> Activity
           </h2>
-          <div className="bg-white border border-indigo-100 rounded-xl shadow-sm p-4 space-y-3">
+          <div className="bg-white dark:bg-zinc-800/50 border border-indigo-100 dark:border-zinc-700 rounded-xl shadow-sm p-4 space-y-3">
             {(stats?.recent_activity || []).length === 0 && (
               <p className="text-xs text-zinc-400">No activity yet.</p>
             )}
             {(stats?.recent_activity || []).map((a) => (
               <div key={a.id} className="text-xs" data-testid={`activity-${a.id}`}>
-                <span className="font-medium text-zinc-800">{a.user_name}</span>{" "}
-                <span className="text-zinc-400">{a.action}</span>{" "}
-                <span className="font-mono text-zinc-700">{a.feature_name}</span>
+                <span className="font-medium text-zinc-800 dark:text-zinc-200">{a.user_name}</span>{" "}
+                <span className="text-zinc-400 dark:text-zinc-500">{a.action}</span>{" "}
+                <span className="font-mono text-zinc-700 dark:text-zinc-300">{a.feature_name}</span>
                 <div className="text-[10px] text-zinc-400 mt-0.5 font-mono">{new Date(a.timestamp).toLocaleString()}</div>
               </div>
             ))}
